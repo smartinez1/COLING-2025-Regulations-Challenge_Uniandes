@@ -10,8 +10,24 @@ import os
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# The main webpage URL
-url = "https://www.fdic.gov/federal-deposit-insurance-act"  
+# List of URLs to process
+QA_urls = [
+    "https://www.sec.gov/",
+    "https://www.federalreserve.gov/",
+    "https://www.fdic.gov/federal-deposit-insurance-act",
+    "https://www.iii.org/publications/insurance-handbook/regulatory-and-financial-environment/",
+    "https://files.fasab.gov/pdffiles/2023_FASAB_Handbook.pdf",
+    "https://www.in.gov/sboa/about-us/sboa-glossary-of-accounting-and-audit-terms/"
+]
+
+LR_urls = [
+    "https://eur-lex.europa.eu/oj/daily-view/L-series/default.html?ojDate=10102024",
+    "https://www.esma.europa.eu/",
+    "https://www.sec.gov/rules-regulations",
+    "https://www.ecfr.gov/",
+    "https://www.fdic.gov/laws-and-regulations/fdic-law-regulations-related-acts",
+    "https://www.federalreserve.gov/supervisionreg/reglisting.htm"
+]
 
 # Simulate a browser user-agent to avoid 403 error
 headers = {
@@ -19,13 +35,16 @@ headers = {
 }
 
 def get_filename_from_url(url):
-    # Remove protocol (http:// or https://) and get the main domain
-    domain = url.split("//")[-1].split("/")[0]  
-    # Extract the part between "www." and ".com/.gov/.edu/etc."
-    base_name = domain.split('.')[1] if domain.startswith("www.") else domain.split('.')[0]
-    # Construct the CSV file name using the extracted base name
-    filename = f"scraped_{base_name}_content.csv"
-    return filename
+    """Helper function to create a safe filename from a URL"""
+    return url.replace('https://', '').replace('http://', '').replace('/', '_').replace(':', '')
+
+# Function to create a directory if it doesn't exist
+def create_directory(folder_name):
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+        logging.info(f"Created directory: {folder_name}")
+    else:
+        logging.info(f"Directory already exists: {folder_name}")
 
 # Function to scrape content from a given URL
 def scrape_link_content(link, retries=3):
@@ -72,35 +91,67 @@ def scrape_links_from_main_page(url, link_conditions=["regulations", "accounting
         logging.error(f"Error scraping main page {url}: {e}")
         return []
 
+# Function to log URLs that produced no results into a file
+def log_failed_urls(failed_urls, folder_name="logs", log_file_name="failed_urls.txt"):
+    create_directory(folder_name)  # Ensure the log folder exists
+    log_file_path = os.path.join(folder_name, log_file_name)
+    
+    with open(log_file_path, 'w') as log_file:
+        log_file.write("Links that produced no results:\n")
+        log_file.write("=" * 50 + "\n")
+        for url, reason in failed_urls:
+            log_file.write(f"URL: {url}\nReason: {reason}\n\n")
+    
+    logging.info(f"Logged failed URLs to {log_file_path}")
+
 # Main scraping process
 def main():
-    # Scraping links from the main page
-    links = scrape_links_from_main_page(url)
+    # List to store URLs that produced no results
+    failed_urls = []
 
-    if not links:
-        logging.warning("No links found matching the given condition.")
-        return
+    # Process QA URLs
+    failed_urls.extend(process_urls(QA_urls, "QA"))
+    
+    # Process LR URLs
+    failed_urls.extend(process_urls(LR_urls, "LR"))
+    
+    # Log the failed URLs to a file if there are any
+    if failed_urls:
+        log_failed_urls(failed_urls)
 
-    # Structure to save the scraped data
-    scraped_data = []
+# Helper function to process a list of URLs and save scraped data in the corresponding folder
+def process_urls(urls, directory):
+    failed_urls = []
 
-    # Scrape content from each link
-    for link in tqdm(links, desc="Scraping Links"):
-        logging.info(f"Scraping content from: {link}")
-        content = scrape_link_content(link)
-        if content:
-            scraped_data.append({'link': link, 'content': content})
-        else:
-            logging.warning(f"No content found or an error occurred for: {link}")
+    # Create the directory for the URL type if it doesn't exist
+    create_directory(directory)
+    
+    for url in urls:
+        # Create a CSV filename based on the URL
+        csv_filename = os.path.join(directory, f"scraped_{get_filename_from_url(url)}.csv")
+        
+        # Check if the CSV already exists
+        if os.path.exists(csv_filename):
+            print(f"Skipping {url}, CSV already exists.")
+            continue
 
-    # Save the scraped data to CSV
-    if scraped_data:
-        df = pd.DataFrame(scraped_data)
-        csv_filename = get_filename_from_url(url)
-        df.to_csv(csv_filename, index=False)
-        logging.info(f"Scraping completed and data saved to {csv_filename}.csv")
-    else:
-        logging.warning("Scraping finished, but no content to save.")
+        try:
+            # Use scrape_link_content to scrape the page content
+            page_content = scrape_link_content(url)
+            if page_content:
+                df = pd.DataFrame({"content": [page_content]})
+            
+                # Save the scraped data to CSV, with escapechar to handle special characters
+                df.to_csv(csv_filename, index=False, escapechar='\\')
+                print(f"Scraping completed for {url} and data saved to {csv_filename}.")
+            else:
+                raise Exception("No content found.")
+        
+        except Exception as e:
+            print(f"Failed to process {url}: {str(e)}")
+            failed_urls.append((url, str(e)))
+    
+    return failed_urls
 
 if __name__ == "__main__":
     main()
