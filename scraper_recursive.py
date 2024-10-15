@@ -11,6 +11,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
+import traceback
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -48,6 +49,26 @@ keywords = ["regulation", "financial", "insurance", "deposit", "law", "act"]
 def generate_csv_filename(url_type):
     return f"{url_type}.csv"
 
+
+def get_root_domain(url):
+    """
+    Extract the root domain from a URL.
+
+    Args:
+        url (str): The URL from which to extract the root domain.
+
+    Returns:
+        str: The root domain of the URL.
+    """
+    try:
+        parsed_url = urlparse(url)
+        domain = parsed_url.netloc
+        root_domain = domain.split('.')[-2] + '.' + domain.split('.')[-1]  # Extracts the last two parts of the domain
+        return root_domain
+    except Exception as e:
+        logging.error(f"Error extracting root domain from {url}: {e}")
+        return None
+
 # Decorator for exponential backoff
 def retry_with_exponential_backoff(max_attempts=5):
     def decorator(func):
@@ -74,8 +95,7 @@ def init_webdriver():
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     
-    service = Service('path/to/chromedriver')  # Replace with your chromedriver path
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    driver = webdriver.Chrome(options=chrome_options)
     
     return driver
 
@@ -99,6 +119,7 @@ def contains_keywords(text):
 
 # Function to check if a domain is banned
 def is_banned_domain(domain):
+    breakpoint()
     return any(banned_domain in domain for banned_domain in banned_domains)
 
 # Function to append data to the CSV or update existing entries
