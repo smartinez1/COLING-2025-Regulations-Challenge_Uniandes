@@ -11,36 +11,31 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
+from scraper_links import BANNED_DOMAINS, SCRAP_LINKS
 import traceback
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Define QA and LR URLs
-QA_urls = [
-    "https://www.sec.gov/",
-    "https://www.federalreserve.gov/",
-    "https://www.fdic.gov/federal-deposit-insurance-act",
-    "https://www.iii.org/publications/insurance-handbook/regulatory-and-financial-environment/",
-    "https://files.fasab.gov/pdffiles/2023_FASAB_Handbook.pdf",
-    "https://www.in.gov/sboa/about-us/sboa-glossary-of-accounting-and-audit-terms/"
-]
+# QA_urls = [
+#     "https://www.sec.gov/",
+#     "https://www.federalreserve.gov/",
+#     "https://www.fdic.gov/federal-deposit-insurance-act",
+#     "https://www.iii.org/publications/insurance-handbook/regulatory-and-financial-environment/",
+#     "https://files.fasab.gov/pdffiles/2023_FASAB_Handbook.pdf",
+#     "https://www.in.gov/sboa/about-us/sboa-glossary-of-accounting-and-audit-terms/"
+# ]
 
-LR_urls = [
-    "https://eur-lex.europa.eu/oj/daily-view/L-series/default.html?ojDate=10102024",
-    "https://www.esma.europa.eu/",
-    "https://www.sec.gov/rules-regulations",
-    "https://www.ecfr.gov/",
-    "https://www.fdic.gov/laws-and-regulations/fdic-law-regulations-related-acts",
-    "https://www.federalreserve.gov/supervisionreg/reglisting.htm"
-]
+# LR_urls = [
+#     "https://eur-lex.europa.eu/oj/daily-view/L-series/default.html?ojDate=10102024",
+#     "https://www.esma.europa.eu/",
+#     "https://www.sec.gov/rules-regulations",
+#     "https://www.ecfr.gov/",
+#     "https://www.fdic.gov/laws-and-regulations/fdic-law-regulations-related-acts",
+#     "https://www.federalreserve.gov/supervisionreg/reglisting.htm"
+# ]
 
-# List of banned domains
-banned_domains = [
-    "facebook.com", "twitter.com", "youtube.com", "instagram.com",
-    "linkedin.com", "t.co", "x.com", "pinterest.com", "reddit.com", "flickr.com",
-    "threads.net"
-]
 
 # Keywords to look for in the page content
 keywords = ["regulation", "financial", "insurance", "deposit", "law", "act"]
@@ -102,8 +97,8 @@ def init_webdriver():
 # Function to scrape content from a given URL using Selenium
 @retry_with_exponential_backoff(max_attempts=5)
 def scrape_link_content(link):
-    driver = init_webdriver()
     try:
+        driver = init_webdriver()
         driver.get(link)
         time.sleep(2)  # Allow time for the page to load
         page_text = driver.find_element("tag name", "body").text
@@ -119,11 +114,10 @@ def contains_keywords(text):
 
 # Function to check if a domain is banned
 def is_banned_domain(domain):
-    breakpoint()
-    return any(banned_domain in domain for banned_domain in banned_domains)
+    return any(banned_domain in domain for banned_domain in BANNED_DOMAINS)
 
 # Function to append data to the CSV or update existing entries
-def update_csv(csv_filename, url, page_content):
+def update_csv(csv_filename, url, source, page_content):
     if os.path.exists(csv_filename):
         try:
             df = pd.read_csv(csv_filename, encoding='utf-8', on_bad_lines='skip', engine='python')
@@ -131,9 +125,9 @@ def update_csv(csv_filename, url, page_content):
             logging.error(f"Error reading {csv_filename}: {e}")
             return
     else:
-        df = pd.DataFrame(columns=["url", "content"])
+        df = pd.DataFrame(columns=["url", "source","content"])
 
-    new_row = pd.DataFrame({"url": [url], "content": [page_content]})
+    new_row = pd.DataFrame({"url": [url], "source": [source], "content": [page_content]})
     df = pd.concat([df, new_row], ignore_index=True)
 
     try:
@@ -143,7 +137,14 @@ def update_csv(csv_filename, url, page_content):
         logging.error(f"Error updating {csv_filename}: {e}")
 
 # Function to scrape links from a page recursively with depth control
-def scrape_links_from_page(url, visited, csv_filename, non_working_links, max_depth, current_depth=0):
+def scrape_links_from_page(url_tuple, csv_filename,current_depth=0):
+    visited = set()
+    # Unpack tuple
+
+    print("-"*50)
+    print(f"LEN TUPLE: {len(url_tuple)}")
+    source, url, max_depth = url_tuple
+
     if url in visited or current_depth > max_depth:
         return
 
@@ -152,12 +153,12 @@ def scrape_links_from_page(url, visited, csv_filename, non_working_links, max_de
 
     page_content, error = scrape_link_content(url)
 
-    if error:
-        non_working_links.append((url, error))
-        return
+    # if error:
+    #     non_working_links.append((url, error))
+    #     return
 
     if page_content and contains_keywords(page_content):
-        update_csv(csv_filename, url, page_content)
+        update_csv(csv_filename, url, source, page_content)
 
     try:
         driver = init_webdriver()
@@ -175,40 +176,34 @@ def scrape_links_from_page(url, visited, csv_filename, non_working_links, max_de
                     logging.info(f"Skipping {full_link} (banned domain)")
                     continue
 
-                scrape_links_from_page(full_link, visited, csv_filename, non_working_links, max_depth, current_depth + 1)
+                scrape_links_from_page(full_link, csv_filename, current_depth + 1)
     except Exception as e:
-        logging.error(f"Error extracting links from {url}: {e}")
+        logging.error(f"Error extracting links from {url}: {traceback.print_exc()}")
     finally:
         driver.quit()  # Close the browser
 
 # Function to scrape links in parallel
-def parallel_scrape(start_urls, directory, max_depth):
+def parallel_scrape(start_urls, directory):
+    # non_working_links = []
+
     base_directory = f"recursive_data/{directory}"
     if not os.path.exists(base_directory):
         os.makedirs(base_directory)
 
-    visited = set()
-    non_working_links = []
     csv_filename = os.path.join(base_directory, generate_csv_filename(directory))
 
     with ThreadPoolExecutor() as executor:
-        futures = {executor.submit(scrape_links_from_page, url, visited, csv_filename, non_working_links, max_depth): url for url in start_urls}
+        futures = {executor.submit(scrape_links_from_page, url_tuple, csv_filename): url_tuple for url_tuple in start_urls}
         for future in tqdm(as_completed(futures), total=len(futures)):
             try:
                 future.result()
             except Exception as e:
                 logging.error(f"Error in scraping task: {e}")
 
-    if non_working_links:
-        df_non_working = pd.DataFrame(non_working_links, columns=["url", "error_reason"])
-        df_non_working.to_csv(os.path.join(base_directory, "non_working_links.csv"), index=False)
-        logging.info(f"Saved non-working links to {os.path.join(base_directory, 'non_working_links.csv')}")
-
-# Main function to start the recursive scraping
-def main(start_urls, directory, max_depth=2):
-    parallel_scrape(start_urls, directory, max_depth)
+    # if non_working_links:
+    #     df_non_working = pd.DataFrame(non_working_links, columns=["url", "error_reason"])
+    #     df_non_working.to_csv(os.path.join(base_directory, "non_working_links.csv"), index=False)
+    #     logging.info(f"Saved non-working links to {os.path.join(base_directory, 'non_working_links.csv')}")
 
 if __name__ == "__main__":
-    max_depth = 3
-    main(QA_urls, directory="QA", max_depth=max_depth)  # Scrape QA URLs
-    main(LR_urls, directory="LR", max_depth=max_depth)  # Scrape LR URLs
+    parallel_scrape(start_urls=SCRAP_LINKS, directory="total")
