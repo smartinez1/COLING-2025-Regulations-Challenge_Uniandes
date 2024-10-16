@@ -140,9 +140,6 @@ def update_csv(csv_filename, url, source, page_content):
 def scrape_links_from_page(url_tuple, csv_filename, current_depth=0):
     visited = set()
     # Unpack tuple
-
-    print("-"*50)
-    print(f"LEN TUPLE: {len(url_tuple)}")
     source, url, max_depth = url_tuple
 
     if url in visited or current_depth > max_depth:
@@ -175,10 +172,9 @@ def scrape_links_from_page(url_tuple, csv_filename, current_depth=0):
                 if is_banned_domain(full_link_domain):
                     logging.info(f"Skipping {full_link} (banned domain)")
                     continue
-                for url_ in full_link:
-                    scrape_links_from_page((source, url_, max_depth), csv_filename, current_depth + 1)
+                scrape_links_from_page((source, full_link, max_depth), csv_filename, current_depth + 1)
     except Exception as e:
-        logging.error(f"Error extracting links from {url}: {traceback.print_exc()}")
+        logging.error(f"Error extracting links from {url}: {e}")
     finally:
         driver.quit()  # Close the browser
 
