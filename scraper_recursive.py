@@ -137,7 +137,7 @@ def update_csv(csv_filename, url, source, page_content):
         logging.error(f"Error updating {csv_filename}: {e}")
 
 # Function to scrape links from a page recursively with depth control
-def scrape_links_from_page(url_tuple, csv_filename,current_depth=0):
+def scrape_links_from_page(url_tuple, csv_filename, current_depth=0):
     visited = set()
     # Unpack tuple
 
@@ -175,8 +175,8 @@ def scrape_links_from_page(url_tuple, csv_filename,current_depth=0):
                 if is_banned_domain(full_link_domain):
                     logging.info(f"Skipping {full_link} (banned domain)")
                     continue
-
-                scrape_links_from_page(full_link, csv_filename, current_depth + 1)
+                for url_ in full_link:
+                    scrape_links_from_page((source, url_, max_depth), csv_filename, current_depth + 1)
     except Exception as e:
         logging.error(f"Error extracting links from {url}: {traceback.print_exc()}")
     finally:
