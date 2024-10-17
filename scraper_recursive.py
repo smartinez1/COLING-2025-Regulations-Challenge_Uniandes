@@ -1,3 +1,8 @@
+
+import PyPDF2
+import docx
+import io
+
 import os
 import time
 import logging
@@ -13,9 +18,19 @@ from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
 from scraper_links import BANNED_DOMAINS, SCRAP_LINKS
 import traceback
+import threading
 
+lock = threading.Lock()
+batch_lock = threading.Lock()
+batch_data = []
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Keywords to look for in the page content
+keywords = ["regulation", "financial", "insurance", "deposit", "law", "act"]
+# Batching settings
+BATCH_SIZE = 10 
+batch_writing_in_progress = False 
 
 # Define QA and LR URLs
 # QA_urls = [
@@ -36,9 +51,57 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 #     "https://www.federalreserve.gov/supervisionreg/reglisting.htm"
 # ]
 
+# Function to download and extract content from PDFs and DOCX files
+def download_and_extract_file(link, download_dir="downloads"):
+    try:
+        # Make sure the download directory exists
+        if not os.path.exists(download_dir):
+            os.makedirs(download_dir)
 
-# Keywords to look for in the page content
-keywords = ["regulation", "financial", "insurance", "deposit", "law", "act"]
+        # Get the file extension to identify the file type
+        response = requests.get(link)
+        filename = link.split("/")[-1]
+        file_path = os.path.join(download_dir, filename)
+        
+        # Save the file locally
+        with open(file_path, 'wb') as f:
+            f.write(response.content)
+        
+        # Extract text based on the file type
+        if filename.lower().endswith(".pdf"):
+            return extract_text_from_pdf(file_path)
+        elif filename.lower().endswith(".docx"):
+            return extract_text_from_docx(file_path)
+        else:
+            logging.info(f"Unsupported file type: {filename}")
+            return None
+    except Exception as e:
+        logging.error(f"Failed to download or extract file {link}: {e}")
+        return None
+
+# Function to extract text from a PDF
+def extract_text_from_pdf(pdf_path):
+    text = ""
+    try:
+        with open(pdf_path, 'rb') as f:
+            reader = PyPDF2.PdfFileReader(f)
+            for page_num in range(reader.numPages):
+                page = reader.getPage(page_num)
+                text += page.extractText()
+    except Exception as e:
+        logging.error(f"Error extracting text from PDF {pdf_path}: {e}")
+    return text
+
+# Function to extract text from a DOCX file
+def extract_text_from_docx(docx_path):
+    text = ""
+    try:
+        doc = docx.Document(docx_path)
+        for para in doc.paragraphs:
+            text += para.text + "\n"
+    except Exception as e:
+        logging.error(f"Error extracting text from DOCX {docx_path}: {e}")
+    return text
 
 # Function to generate a safe filename based on the URL type
 def generate_csv_filename(url_type):
@@ -118,23 +181,72 @@ def is_banned_domain(domain):
 
 # Function to append data to the CSV or update existing entries
 def update_csv(csv_filename, url, source, page_content):
-    if os.path.exists(csv_filename):
+    # Locking the block to prevent simultaneous writes
+    with lock:
+        if os.path.exists(csv_filename):
+            try:
+                df = pd.read_csv(csv_filename, encoding='utf-8', on_bad_lines='skip', engine='python')
+            except Exception as e:
+                logging.error(f"Error reading {csv_filename}: {e}")
+                return
+        else:
+            df = pd.DataFrame(columns=["url", "source","content"])
+
+        new_row = pd.DataFrame({"url": [url], "source": [source], "content": [page_content]})
+        df = pd.concat([df, new_row], ignore_index=True)
+
         try:
-            df = pd.read_csv(csv_filename, encoding='utf-8', on_bad_lines='skip', engine='python')
+            df.to_csv(csv_filename, index=False, encoding='utf-8')
+            logging.info(f"Updated {csv_filename} successfully.")
         except Exception as e:
-            logging.error(f"Error reading {csv_filename}: {e}")
-            return
-    else:
-        df = pd.DataFrame(columns=["url", "source","content"])
+            logging.error(f"Error updating {csv_filename}: {e}")
 
-    new_row = pd.DataFrame({"url": [url], "source": [source], "content": [page_content]})
-    df = pd.concat([df, new_row], ignore_index=True)
+def update_csv_batch(csv_filename, url, source, page_content):
+    global batch_data, batch_writing_in_progress
 
-    try:
-        df.to_csv(csv_filename, index=False, encoding='utf-8')
-        logging.info(f"Updated {csv_filename} successfully.")
-    except Exception as e:
-        logging.error(f"Error updating {csv_filename}: {e}")
+    # Wait until batch writing is not in progress
+    while batch_writing_in_progress:
+        time.sleep(0.5)  # Sleep to wait for the batch writing to complete
+
+    # Create a new row
+    new_row = {"url": url, "source": source, "content": page_content}
+
+    # Lock for thread-safe data modification
+    with lock:
+        batch_data.append(new_row)
+
+        # Write to CSV if the batch size is reached
+        if len(batch_data) >= BATCH_SIZE:
+            write_batch_to_csv(csv_filename)
+
+            # Reset the batch after writing
+            batch_data = []
+
+# Function to write the accumulated batch to the CSV file
+def write_batch_to_csv(csv_filename):
+    global batch_data, batch_writing_in_progress
+
+    # Acquire the lock and set the flag to indicate batch writing in progress
+    with batch_lock:
+        batch_writing_in_progress = True  # Set flag before writing
+
+        if len(batch_data) > 0:
+            # Convert the batch data to a DataFrame
+            df_batch = pd.DataFrame(batch_data)
+
+            # Append the batch to the CSV file
+            if not os.path.exists(csv_filename):
+                df_batch.to_csv(csv_filename, index=False, encoding='utf-8')
+            else:
+                df_batch.to_csv(csv_filename, mode='a', header=False, index=False, encoding='utf-8')
+
+            logging.info(f"Batch of {len(batch_data)} rows written to {csv_filename}")
+
+            # Reset the batch after writing
+            batch_data = []
+
+        batch_writing_in_progress = False  # Reset flag after writing
+
 
 # Function to scrape links from a page recursively with depth control
 def scrape_links_from_page(url_tuple, csv_filename, current_depth=0):
@@ -155,7 +267,7 @@ def scrape_links_from_page(url_tuple, csv_filename, current_depth=0):
     #     return
 
     if page_content and contains_keywords(page_content):
-        update_csv(csv_filename, url, source, page_content)
+        update_csv_batch(csv_filename, url, source, page_content)
 
     try:
         driver = init_webdriver()
@@ -172,7 +284,14 @@ def scrape_links_from_page(url_tuple, csv_filename, current_depth=0):
                 if is_banned_domain(full_link_domain):
                     logging.info(f"Skipping {full_link} (banned domain)")
                     continue
-                scrape_links_from_page((source, full_link, max_depth), csv_filename, current_depth + 1)
+                # Check if the link is a downloadable file (PDF/DOCX)
+                if full_link.endswith((".pdf", ".docx")):
+                    logging.info(f"Found a file link: {full_link}")
+                    file_content = download_and_extract_file(full_link)
+                    if file_content:
+                        update_csv_batch(csv_filename, full_link, source, file_content)
+                else:
+                    scrape_links_from_page((source, full_link, max_depth), csv_filename, current_depth + 1)
     except Exception as e:
         logging.error(f"Error extracting links from {url}: {e}")
     finally:

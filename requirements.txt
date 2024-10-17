@@ -2,4 +2,6 @@ requests
 bs4
 pandas
 tqdm
+PyPDF2
+python-docx
 selenium
