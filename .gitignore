@@ -3,3 +3,9 @@
 /LR
 /logs
 /downloads
+corpus.mm
+corpus.mm.index
+midict.dict
+mycorpusGensim.txt
+similmatrix.index
+similmatrix.index.index.npy

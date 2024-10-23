@@ -5,3 +5,9 @@ tqdm
 PyPDF2
 python-docx
 selenium
+tiktoken
+seaborn
+gensim
+nltk
+wordcloud
+matplotlib
