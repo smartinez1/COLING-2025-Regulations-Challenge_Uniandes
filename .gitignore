@@ -10,3 +10,4 @@ midict.dict
 mycorpusGensim.txt
 similmatrix.index
 similmatrix.index.index.npy
+.env
