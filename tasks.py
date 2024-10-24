@@ -8,12 +8,12 @@ import os
 import traceback
 from langchain.prompts import PromptTemplate
 
-load_dotenv()
+load_dotenv() 
 
 def load_data(data_path:str)-> pd.DataFrame:
     return pd.read_csv(data_path)
 
-def generar_preguntas_y_respuestas(text):
+def generate_qa(text):
     # Define a prompt template for generating questions and answers
     prompt_template = PromptTemplate(
         input_variables=["text"],
@@ -31,18 +31,20 @@ def generar_preguntas_y_respuestas(text):
         The question should be clear, and should not reference the provided text.
         """
     )
+
     # Format the input text into the template
     prompt = prompt_template.format(text=text)
 
-
-    try:
-        resultado_completo = send_prompt(prompt)
-        return resultado_completo
-    
-    except:
-        print(traceback.print_exc())
-        #print("Rate limit exceeded. Waiting before retrying...")
-        #time.sleep(60)
+    while True:
+        try:
+            resultado_completo = send_prompt(prompt)
+            return resultado_completo
+        except openai.RateLimitError:
+            print("Rate limit exceeded. Waiting before retrying...")
+            time.sleep(60)
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            break
 
 
 def send_prompt(prompt):
@@ -80,7 +82,7 @@ if __name__ == "__main__":
             ."
     """
     # Generate questions and answers based on the raw input text
-    preguntas_y_respuestas = generar_preguntas_y_respuestas(texto_raw)
+    preguntas_y_respuestas = generate_qa(texto_raw)
 
     # Print the generated questions and answers
     print(preguntas_y_respuestas)
