@@ -3,6 +3,7 @@
 /LR
 /logs
 /downloads
+/.venv
 corpus.mm
 corpus.mm.index
 midict.dict
