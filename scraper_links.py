@@ -29,3 +29,17 @@ SCRAP_LINKS = [("EUR-LEX","https://eur-lex.europa.eu/oj/direct-access.html",4),
                 ] #TODO: When we handle pdfs, scrape the last link
 
 ## TODO: Most of the categories share links, we can just create a mapping to retrieve relevant documents per dataset section
+
+
+ABBREV = ["EUR-LEX", 
+          "ESMA", 
+          "SEC", 
+          "CFTC", 
+          "FINRA",
+          "FED",
+          "FDIC",
+          "III",
+          "FASAB",
+          "SBOA",
+          "NYSE"
+          ]
