@@ -48,7 +48,7 @@ def generate_qa(text):
 
 
 def send_prompt(prompt):
-    deployment_name2 = "gpt-4o-mini"
+    deployment_name = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT_NAME")
     client = AzureOpenAI(
         api_key=os.getenv("AZURE_OPENAI_API_KEY"),
         api_version="2024-02-01",
@@ -56,7 +56,7 @@ def send_prompt(prompt):
     )
 
     chat_completion_zero = client.chat.completions.create(
-        model=deployment_name2,
+        model=deployment_name,
         messages=[
             {
                 "role": "user",
