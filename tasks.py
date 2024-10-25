@@ -48,7 +48,6 @@ def generate_qa(text):
 
 
 def send_prompt(prompt):
-    
     deployment_name2 = "gpt-4o-mini"
     client = AzureOpenAI(
         api_key=os.getenv("AZURE_OPENAI_API_KEY"),
@@ -67,8 +66,6 @@ def send_prompt(prompt):
         temperature=0.1
     )
     return chat_completion_zero # Extract the response
-
-
 
 
 if __name__ == "__main__":
