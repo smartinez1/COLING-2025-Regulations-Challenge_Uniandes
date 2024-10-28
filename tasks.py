@@ -1,44 +1,71 @@
-import pandas as pd 
-from scraper_links import ABBREV
-from openai import AzureOpenAI
-import openai
-import time
-from dotenv import load_dotenv
 import os
-import traceback
-from langchain.prompts import PromptTemplate
+import random
+import openai
+import re
+from dotenv import load_dotenv
+from openai import AzureOpenAI
+from pydantic import BaseModel, ValidationError
+from typing import List, Dict
+import time
+from pprint import pprint
+import pandas as pd
 
-load_dotenv() 
+load_dotenv()
+# Placeholder values for API key and endpoint
+API_KEY_MINI = os.getenv("AZURE_OPENAI_API_KEY") 
+API_BASE_GPMINI = os.getenv("AZURE_OPENAI_ENDPOINT")
+API_DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT_NAME")
 
-def load_data(data_path:str)-> pd.DataFrame:
-    return pd.read_csv(data_path)
+class ContextWithAbbreviations(BaseModel):
+    """
+    Pydantic model to represent the context and its associated abbreviations.
 
-def generate_qa(text):
-    # Define a prompt template for generating questions and answers
-    prompt_template = PromptTemplate(
-        input_variables=["text"],
-        template="""
-        Below, you have the following text: "{text}". Based on this text:
+    Attributes:
+        text (str): The original text from which abbreviations are extracted.
+        abbreviations (Dict[str, str]): A dictionary mapping abbreviations to their expanded versions.
+    """
+    text: str
+    abbreviations: Dict[str, str]
 
-        1. Write 1 question that covers the main aspects of the text.
-        2. Provide a detailed answer based on the information from the text.
+def extract_abbreviations(context: str) -> List[str]:
+    """
+    Extracts abbreviations from a given context using the OpenAI API.
 
-        Follow the format:
-        ´´´
-        Question: [Question]
-        Answer: [Answer]
-        ´´´
-        The question should be clear, and should not reference the provided text.
-        """
-    )
+    This function constructs a prompt for the OpenAI model to identify and 
+    extract abbreviations present in the provided context. It returns a 
+    list of abbreviations as strings.
 
-    # Format the input text into the template
-    prompt = prompt_template.format(text=text)
+    Args:
+        context (str): The text context from which to extract abbreviations.
+
+    Returns:
+        Dict[str, str]: A list of abbreviations and their corresponding expansion extracted from the context.
+    """
+    prompt_template = """
+    Given the following text:
+    ´´´
+    {context}
+    ´´´
+    extract all abbreviations that appear along with their expanded versions.
+    return them in a numerated list following this format
+    ´´´
+    1. <abbreaviation> - <expanded version>
+    2. <abbreaviation> - <expanded version>
+    .
+    .
+    .
+    n. <abbreaviation> - <expanded version>
+    ´´´
+    ONLY provide this list, nothing else, nothing extra.
+    """
+
+    prompt = prompt_template.format(context=context)
 
     while True:
         try:
-            resultado_completo = send_prompt(prompt)
-            return resultado_completo
+            resultado = send_prompt(prompt)
+            abbreviations = parse_abbreviations(resultado)
+            return abbreviations
         except openai.RateLimitError:
             print("Rate limit exceeded. Waiting before retrying...")
             time.sleep(60)
@@ -46,13 +73,21 @@ def generate_qa(text):
             print(f"An error occurred: {e}")
             break
 
+def send_prompt(prompt: str) -> str:
+    """
+    Send the prepared prompt to the OpenAI API for generating abbreviations.
 
-def send_prompt(prompt):
+    Args:
+        prompt (str): The prompt text to send.
+    
+    Returns:
+        str: Response content from the OpenAI API with generated abbreviations.
+    """
     deployment_name = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT_NAME")
     client = AzureOpenAI(
         api_key=os.getenv("AZURE_OPENAI_API_KEY"),
         api_version="2024-02-01",
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
     )
 
     chat_completion_zero = client.chat.completions.create(
@@ -63,24 +98,43 @@ def send_prompt(prompt):
                 "content": prompt,
             }
         ],
-        temperature=0.1
+        temperature=0.0
     )
-    return chat_completion_zero # Extract the response
+    return chat_completion_zero.choices[0].message.content
 
+def parse_abbreviations(resultado: str) -> Dict[str, str]:
+    """
+    Parse the raw string output of abbreviations into a dictionary.
+
+    Args:
+        resultado (str): Raw output string containing abbreviations and their meanings.
+
+    Returns:
+        Dict[str, str]: A dictionary mapping abbreviations to their expanded versions.
+    """
+    lines = resultado.strip().split('\n')
+    abbs_dict = {}
+    
+    for line in lines:
+        if " - " in line:  # Check to find the abbreviation
+            abbr, expanded = line.split(" - ", 1)
+            # Remove any leading index (digits followed by a dot)
+            abbr = abbr.split('.', 1)[-1].strip()  # Strip index and any leading spaces
+            abbs_dict[abbr] = expanded.strip()
+
+    return abbs_dict
 
 if __name__ == "__main__":
-    # sexius = AzureOpenAI()
+    # Reading CSV and creating the context with abbreviations
+    csv_filename = 'recursive_data/total/total_cleaned.csv'
+    df = pd.read_csv(csv_filename)
+    ind = 1000
+    context_text = df.iloc[ind]["content"]
 
-    # Example raw text input (replace with your actual input text)
-    texto_raw = """
-    Federal Reserve Board - Site Map Skip to main content Back to Home Board of Governors of the Federal Reserve System Stay Connected Federal Reserve Facebook Page Federal Reserve Instagram Page Federal Reserve YouTube Page Federal Reserve Flickr Page Federal Reserve LinkedIn Page Federal Reserve Threads Page Federal Reserve Twitter Page Subscribe to RSS Subscribe to Email Recent Postings Calendar Publications Site Map A-Z index Careers FAQs Videos Contact Search Submit Search Button Advanced Toggle Dropdown Menu Board of Governors of the Federal Reserve System The Federal Reserve, the central bank of the United States, provides
-            the nation with a safe, flexible, and stable monetary and financial
-            system. Main Menu Toggle Button Sections Search Toggle Button Search Search Submit Button Submit About the Fed Structure of the Federal Reserve System The Fed Explained Board Members Advisory Councils Federal Reserve Banks Federal Reserve Bank and Branch Directors Federal Reserve Act Currency Board Meetings Board Votes Diversity & Inclusion Careers Do Business with the Board Holidays Observed - K.8 Ethics & Values Contact Requesting Information (FOIA) FAQs Economic Education Fed Financial Statements Innovation News & Events Press Releases Speeches Testimony Calendar Videos Photo Gallery Conferences Monetary Policy Federal Open Market Committee About the FOMC Meeting calendars and information Transcripts and other historical materials FAQs Monetary Policy Principles and Practice Notes Policy Implementation Policy Normalization Policy Tools Reports Monetary Policy Report Beige Book Federal Reserve Balance Sheet Developments Review of Monetary Policy Strategy, Tools, and Communications Overview Supervision & Regulation Institution Supervision Novel Activities Supervision Program .
-            ."
-    """
-    # Generate questions and answers based on the raw input text
-    preguntas_y_respuestas = generate_qa(texto_raw)
+    print("Source:")
+    print(df.iloc[ind]["source"])
 
-    # Print the generated questions and answers
-    print(preguntas_y_respuestas)
+    # Extract abbreviations using the OpenAI model
+    extracted_abbreviations = extract_abbreviations(context_text)
 
+    pprint(extracted_abbreviations)
