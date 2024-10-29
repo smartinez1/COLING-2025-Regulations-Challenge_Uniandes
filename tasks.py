@@ -149,7 +149,7 @@ def estimate_cost_and_extract_abbreviations(context_text, api_cost_per_1k_tokens
 
 if __name__ == "__main__":
     # Define file paths and parameters and load data
-    df = pd.read_csv('recursive_data/total/total_cleaned.csv')
+    df = pd.read_csv('recursive_data/total/total_cleanedv2.csv')
     csv_filename = 'generated_data/processed_abbreviations.csv'
     cost_limit = 0.5  # Set your cost limit in dollars, e.g., $0.05
     api_cost_per_1k_tokens = 0.000150  # API cost per 1000 tokens in dollars

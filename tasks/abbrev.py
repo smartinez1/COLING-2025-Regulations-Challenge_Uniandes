@@ -19,7 +19,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from scraper_links import ABBREV
 from utils import OpenAIPromptHandler
 
-from utils import OpenAIPromptHandler
 from typing import Dict
 import asyncio
 
@@ -59,7 +58,7 @@ class OpenAIAbbreviationExtractor(OpenAIPromptHandler):
         try:
             # Send the prompt using the parent's send_prompt method
             full_result = await self.send_prompt(prompt)
-            result = full_result['choices'][0]['message']['content']
+            result = full_result.__dict__['choices'][0].__dict__['message'].__dict__['content']
             abbreviations = self.parse_abbreviations(result)
             return abbreviations
         except Exception as e:
@@ -84,7 +83,6 @@ class OpenAIAbbreviationExtractor(OpenAIPromptHandler):
                 abbreviations[abbr] = expansion
         return abbreviations
 
-
 async def main():
     # Define file paths, parameters, and load data
     df = pd.read_csv('recursive_data/total/total_cleanedv2.csv')
@@ -105,7 +103,6 @@ async def main():
 
     # Initialize the abbreviation extractor
     extractor = OpenAIAbbreviationExtractor(api_cost_per_1k_tokens=api_cost_per_1k_tokens)
-
     # Process each row in the filtered DataFrame
     costs = processed_df['cost'].tolist() if 'cost' in processed_df.columns else []
     for ind, row in filtered_df.iterrows():
