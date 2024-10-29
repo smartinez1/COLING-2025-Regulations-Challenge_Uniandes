@@ -13,3 +13,4 @@ similmatrix.index
 similmatrix.index.index.npy
 .env
 /env
+*.csv

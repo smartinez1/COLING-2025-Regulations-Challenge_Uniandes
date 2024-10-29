@@ -9,139 +9,88 @@ from pprint import pprint
 import pandas as pd
 import numpy as np
 import json
+import sys
+import os
+
+# Add the parent directory to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Now import from the correct module
 from scraper_links import ABBREV
+from utils import OpenAIPromptHandler
 
-load_dotenv()
+from utils import OpenAIPromptHandler
+from typing import Dict
+import asyncio
 
-API_KEY_MINI = os.getenv("AZURE_OPENAI_API_KEY") 
-API_BASE_GPMINI = os.getenv("AZURE_OPENAI_ENDPOINT")
-API_DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT_NAME")
+class OpenAIAbbreviationExtractor(OpenAIPromptHandler):
+    async def extract_abbreviations(self, context: str) -> Dict[str, str]:
+        """
+        Extracts abbreviations from a given context using the OpenAI API.
 
-def extract_abbreviations(context: str) -> List[str]:
-    """
-    Extracts abbreviations from a given context using the OpenAI API.
+        This method constructs a prompt for the OpenAI model to identify and 
+        extract abbreviations present in the provided context. It returns a 
+        dictionary of abbreviations and their corresponding expansions.
 
-    This function constructs a prompt for the OpenAI model to identify and 
-    extract abbreviations present in the provided context. It returns a 
-    list of abbreviations as strings.
+        Args:
+            context (str): The text context from which to extract abbreviations.
 
-    Args:
-        context (str): The text context from which to extract abbreviations.
+        Returns:
+            Dict[str, str]: A dictionary of abbreviations and their expansions.
+        """
+        prompt_template = """
+        Given the following text:
+        ```
+        {context}
+        ```
+        extract all abbreviations that appear along with their expanded versions.
+        return them in a numerated list following this format:
+        ```
+        1. <abbreviation> - <expanded version>
+        2. <abbreviation> - <expanded version>
+        ...
+        ```
+        ONLY provide this list, nothing else.
+        """
 
-    Returns:
-        Dict[str, str]: A list of abbreviations and their corresponding expansion extracted from the context.
-    """
-    prompt_template = """
-    Given the following text:
-    ´´´
-    {context}
-    ´´´
-    extract all abbreviations that appear along with their expanded versions.
-    return them in a numerated list following this format
-    ´´´
-    1. <abbreaviation> - <expanded version>
-    2. <abbreaviation> - <expanded version>
-    .
-    .
-    .
-    n. <abbreaviation> - <expanded version>
-    ´´´
-    ONLY provide this list, nothing else, nothing extra.
-    """
+        # Construct the prompt using the method from the parent class
+        prompt = self.construct_prompt(prompt_template, context)
 
-    prompt = prompt_template.format(context=context)
-
-    while True:
         try:
-            full_result = send_prompt(prompt)
-            result = full_result.choices[0].message.content
-            abbreviations = parse_abbreviations(result)
-            return abbreviations, full_result
-        except openai.RateLimitError:
-            print("Rate limit exceeded. Waiting before retrying...")
-            time.sleep(60)
+            # Send the prompt using the parent's send_prompt method
+            full_result = await self.send_prompt(prompt)
+            result = full_result['choices'][0]['message']['content']
+            abbreviations = self.parse_abbreviations(result)
+            return abbreviations
         except Exception as e:
-            print(f"An error occurred: {e}")
-            break
+            print(f"An error occurred while extracting abbreviations: {e}")
+            return {}
 
-def send_prompt(prompt: str) -> str:
-    """
-    Send the prepared prompt to the OpenAI API for generating abbreviations.
+    def parse_abbreviations(self, response_text: str) -> Dict[str, str]:
+        """
+        Parses the list of abbreviations and expansions from the response text.
 
-    Args:
-        prompt (str): The prompt text to send.
-    
-    Returns:
-        str: Response content from the OpenAI API with generated abbreviations.
-    """
-    deployment_name = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT_NAME")
-    client = AzureOpenAI(
-        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-        api_version="2024-02-01",
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
-    )
+        Args:
+            response_text (str): The raw text response from the OpenAI API.
 
-    chat_completion_zero = client.chat.completions.create(
-        model=deployment_name,
-        messages=[
-            {
-                "role": "user",
-                "content": prompt,
-            }
-        ],
-        temperature=0.0
-    )
-    return chat_completion_zero
+        Returns:
+            Dict[str, str]: A dictionary where keys are abbreviations and values are their expansions.
+        """
+        abbreviations = {}
+        for line in response_text.strip().splitlines():
+            if ". " in line:
+                _, pair = line.split(". ", 1)
+                abbr, expansion = map(str.strip, pair.split(" - ", 1))
+                abbreviations[abbr] = expansion
+        return abbreviations
 
-def parse_abbreviations(resultado: str) -> Dict[str, str]:
-    """
-    Parse the raw string output of abbreviations into a dictionary.
 
-    Args:
-        resultado (str): Raw output string containing abbreviations and their meanings.
-
-    Returns:
-        Dict[str, str]: A dictionary mapping abbreviations to their expanded versions.
-    """
-    lines = resultado.strip().split('\n')
-    abbs_dict = {}
-    
-    for line in lines:
-        if " - " in line:  # Check to find the abbreviation
-            abbr, expanded = line.split(" - ", 1)
-            # Remove any leading index (digits followed by a dot)
-            abbr = abbr.split('.', 1)[-1].strip()  # Strip index and any leading spaces
-            abbs_dict[abbr] = expanded.strip()
-
-    return abbs_dict
-
-# Estimate the cost based on the token count of the first example and append it to the result #TODO generalize to other tasks
-def estimate_cost_and_extract_abbreviations(context_text, api_cost_per_1k_tokens=0.000150):
-    """
-    Estimate the cost of processing all examples based on the first example's token usage
-    and append the first result to the output.
-
-    Args:
-        context_text (str): Text content to be processed by the API.
-        api_cost_per_1k_tokens (float): Cost per 1000 tokens, defaulted to $0.000150.
-
-    Returns:
-        tuple: (estimated cost, first_result_df) - The estimated cost and the DataFrame with the first result.
-    """
-    # Call the API once with the first context text to get token usage and first result (simulated here)
-    result, full_result = extract_abbreviations(context_text)  # Adjusted function to return token count and result
-    token_usage = full_result.usage.total_tokens # Assuming the structure includes 'usage'
-    # Calculate estimated cost
-    estimated_cost = token_usage * api_cost_per_1k_tokens / 1000
-    # Extract the abbreviations from the first result to append to output
-    return result, estimated_cost
-
-if __name__ == "__main__":
-    # Define file paths and parameters and load data
-    df = pd.read_csv('recursive_data/total/total_cleaned.csv')
+async def main():
+    # Define file paths, parameters, and load data
+    df = pd.read_csv('recursive_data/total/total_cleanedv2.csv')
     csv_filename = 'generated_data/processed_abbreviations.csv'
     cost_limit = 0.5  # Set your cost limit in dollars, e.g., $0.05
-    api_cost_per_1k_tokens = 0.000150  # API cost per 1000 tokens in dollars
+    api_cost_per_1k_tokens = 0.0006  # API cost per 1000 tokens in dollars
 
     # Initialize or load the CSV file for abbreviation-expansion pairs
     if os.path.exists(csv_filename):
@@ -154,13 +103,11 @@ if __name__ == "__main__":
     # Filter the main DataFrame
     filtered_df = df[df['source'].isin(ABBREV)]
 
-    if os.path.exists(csv_filename):
-        processed_df = pd.read_csv(csv_filename)
-        costs = processed_df['cost'].tolist()  # Load existing costs from the "cost" column
-    else:
-        costs = []  # Start with an empty list if the CSV doesn't exist
+    # Initialize the abbreviation extractor
+    extractor = OpenAIAbbreviationExtractor(api_cost_per_1k_tokens=api_cost_per_1k_tokens)
 
     # Process each row in the filtered DataFrame
+    costs = processed_df['cost'].tolist() if 'cost' in processed_df.columns else []
     for ind, row in filtered_df.iterrows():
         source = row["source"]
         content_text = row["content"]
@@ -173,27 +120,31 @@ if __name__ == "__main__":
 
         print(f"Processing URL: {url} from source {source}")
 
-        # Extract abbreviations and get token usage and cost
-        extracted_abbreviations, row_cost = estimate_cost_and_extract_abbreviations(content_text, api_cost_per_1k_tokens=api_cost_per_1k_tokens)
+        # Extract abbreviations asynchronously
+        extracted_abbreviations = await extractor.extract_abbreviations(content_text)
+        row_cost = extractor.calculate_cost(len(content_text))  # Adjust token count if needed
         costs.append(row_cost)
         cumulative_cost = np.sum(costs)
         average_cost = np.mean(costs)
         total_examples = len(filtered_df)
 
-        print(f"Average cost per transaction: {average_cost}")
+        print(f"Average cost per transaction: {average_cost:.4f}")
+
         # Check if cumulative cost exceeds the limit
         if cumulative_cost > cost_limit:
             print(f"WARNING: Cumulative cost ${cumulative_cost:.2f} exceeded the limit of ${cost_limit:.2f}. Stopping process.")
             break
         elif average_cost * total_examples > cost_limit:
             print(f"WARNING: Expected final cost estimation: ${average_cost * total_examples:.2f} exceeding the limit of ${cost_limit:.2f}. The process may stop before finishing.")
-        # Append extracted abbreviations with the URL to processed_df, avoiding duplicates
+
+        # Append extracted abbreviations with the URL to processed_df
         new_entries = pd.DataFrame({
-            'url': [url],  # Make sure to pass a list
+            'url': [url],  
             'result': [json.dumps(extracted_abbreviations)],
             'cost': [row_cost]
         })
         processed_df = pd.concat([processed_df, new_entries])
+
         # Save to CSV after processing each row
         new_entries.to_csv(csv_filename, mode='a', header=not os.path.exists(csv_filename), index=False)
 
@@ -204,3 +155,7 @@ if __name__ == "__main__":
         pprint(extracted_abbreviations)
 
     print("All abbreviations processed and saved (or stopped due to cost limit).")
+
+# Entry point
+if __name__ == "__main__":
+    asyncio.run(main())
