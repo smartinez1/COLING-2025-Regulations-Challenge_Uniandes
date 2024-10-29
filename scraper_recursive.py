@@ -18,6 +18,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
 from scraper_links import BANNED_DOMAINS, SCRAP_LINKS
 import traceback
+import numpy as np
 import threading
 
 lock = threading.Lock()
@@ -26,30 +27,72 @@ batch_data = []
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+from gensim import corpora, models, similarities
+from gensim.parsing.porter import PorterStemmer
+from nltk.tokenize import RegexpTokenizer
+from gensim.parsing.preprocessing import remove_stopwords
+
+# Load dictionary, corpus, and similarity index
+dictionary = corpora.Dictionary.load('midict.dict')
+corpus = corpora.MmCorpus('corpus.mm')
+index = similarities.MatrixSimilarity.load('similmatrix.index')
+
+# Load the pre-trained TF-IDF model
+tfidf = models.TfidfModel(corpus)
+
 # Keywords to look for in the page content
-keywords = ["regulation", "financial", "insurance", "deposit", "law", "act"]
+pos_query = """Regulation, law, statute, council, commission, article, compliance, directive, guideline, standard,
+legislation, regulatory framework, policy, decree, act, provision, rule, amendment, enforcement, 
+supervisory authority, financial conduct, oversight, legal framework, code of practice, 
+prudential regulation, anti-money laundering (AML), know your customer (KYC), 
+sanction, financial service, banking law, securities regulation, corporate governance, 
+fiduciary duty, disclosure requirements, risk management, audit, inspection, 
+financial stability, consumer protection, data protection, privacy, cybersecurity, 
+financial crime, fraud prevention, capital requirement, solvency, liquidity, 
+market abuse, insider trading, conflict of interest, transparency, reporting obligation, 
+whistleblower protection, ethical standards, financial oversight, investment guideline, 
+tax law, fiscal policy, monetary policy, currency regulation, exchange control, 
+credit regulation, insurance regulation, pension regulation, derivative, 
+financial instrument, payment system, financial market infrastructure, 
+clearing, settlement, fintech, digital currency, blockchain, cryptocurrency, 
+initial coin offering (ICO), electronic money, payment service, crowdfunding, 
+peer-to-peer lending, robo-advisory, virtual asset, financial innovation, open source, Permissive License, Dual Licensing, Source Code, Binary Form, Distribution, Contribution,
+derivative work, attribution, Patent Grant, warranty, liability, trademark"""
+
+
+neg_query = """"cookies", "submenu", "toggle", "contact", "help", "home", "about", "navigation", "footer", "header", "sidebar", "dropdown", 
+"sitemap", "login", "register", "user interface", "UI", "UX", "user experience", "breadcrumbs", "carousel", "slider", 
+"accordion", "tab", "widget", "modal", "popup", "overlay", "hamburger menu", "footer menu", "social media links", 
+"privacy policy", "terms of use", "disclaimer", "search bar", 
+"login form", "sign up", "account settings", "profile", "logout", "dashboard", "settings", "preferences", 
+"site map", "accessibility", "mobile menu", "responsive design", "click here", "more info", "gallery",
+"webmaster", "copyright", "legal notice", "back to top", "scroll to", "navigation bar", "menu item", 
+"site navigation", "page layout", "layout", "theme", "template", "CSS", "HTML", "JavaScript", "web development", 
+"web design", "frontend", "backend", "server-side", "client-side", "framework", "library", "API", "REST", "SOAP", "web service", "HTTP", "HTTPS", "SSL", "secure connection", "domain name", "URL", "URI", "web hosting", "cloud hosting", 
+"server", "database", "SQL", "NoSQL", "CMS", "content management system", "WordPress", "Joomla", "Drupal", "Magento", 
+"Shopify", "Wix", "Squarespace", "web page", "landing page", "homepage", "blog", "post", "comment section", "linkedin", "flickr", "facebook", "instagram", "threads", "x", "twitter"""
+
+p = PorterStemmer()
+tokenizer = RegexpTokenizer(r'\w+')
+# Función de preprocesamiento, se usará para todos los inputs al modelo (queries y documentos)
+def preprocess_text(text: str):
+    """Preprocesa un texto para eliminar palabras vacías, aplicar stemming y convertir a minúsculas.
+
+    Args:
+        text (str): El texto a preprocesar.
+
+    Returns:
+        List: Una lista con las palabras del texto preprocesado.
+    """
+    text = text.strip().lower()  # Normalización del texto, todo en minúscula y se quitan espacios innecesarios.
+    doc_sw = remove_stopwords(text)
+    doc_stem = p.stem_sentence(doc_sw)
+    return tokenizer.tokenize(doc_stem)
+# MUST CHANGE IF PREPROCESSING FOR GENSIM MODEL CHANGES !!!
+
 # Batching settings
 BATCH_SIZE = 10 
 batch_writing_in_progress = False 
-
-# Define QA and LR URLs
-# QA_urls = [
-#     "https://www.sec.gov/",
-#     "https://www.federalreserve.gov/",
-#     "https://www.fdic.gov/federal-deposit-insurance-act",
-#     "https://www.iii.org/publications/insurance-handbook/regulatory-and-financial-environment/",
-#     "https://files.fasab.gov/pdffiles/2023_FASAB_Handbook.pdf",
-#     "https://www.in.gov/sboa/about-us/sboa-glossary-of-accounting-and-audit-terms/"
-# ]
-
-# LR_urls = [
-#     "https://eur-lex.europa.eu/oj/daily-view/L-series/default.html?ojDate=10102024",
-#     "https://www.esma.europa.eu/",
-#     "https://www.sec.gov/rules-regulations",
-#     "https://www.ecfr.gov/",
-#     "https://www.fdic.gov/laws-and-regulations/fdic-law-regulations-related-acts",
-#     "https://www.federalreserve.gov/supervisionreg/reglisting.htm"
-# ]
 
 # Function to download and extract content from PDFs and DOCX files
 def download_and_extract_file(link, download_dir="downloads"):
@@ -171,9 +214,42 @@ def scrape_link_content(link):
     finally:
         driver.quit()  # Close the browser
 
-# Function to check if any keywords are present in the text
-def contains_keywords(text):
-    return any(keyword.lower() in text.lower() for keyword in keywords)
+# Function to score a new document based on cosine similarity scores with positive and negative queries
+def score_new_document(text_input, pos_query=pos_query, neg_query=neg_query):
+    # Convert the positive, negative queries, and new text input into bag-of-words format
+    query_pos_bow = dictionary.doc2bow(preprocess_text(pos_query))
+    query_neg_bow = dictionary.doc2bow(preprocess_text(neg_query))
+    text_input_bow = dictionary.doc2bow(preprocess_text(text_input))
+
+    # Convert the BOW representations to TF-IDF
+    query_pos_tfidf = tfidf[query_pos_bow]
+    query_neg_tfidf = tfidf[query_neg_bow]
+    text_input_tfidf = tfidf[text_input_bow]
+
+    # Ensure all TF-IDF vectors are of the same length based on the dictionary
+    pos_vector_dense = np.zeros(len(dictionary))
+    for idx, value in query_pos_tfidf:
+        pos_vector_dense[idx] = value
+
+    neg_vector_dense = np.zeros(len(dictionary))
+    for idx, value in query_neg_tfidf:
+        neg_vector_dense[idx] = value
+
+    input_vector_dense = np.zeros(len(dictionary))
+    for idx, value in text_input_tfidf:
+        input_vector_dense[idx] = value
+
+    # Compute cosine similarity scores
+    pos_similarity = np.dot(input_vector_dense, pos_vector_dense)
+    neg_similarity = np.dot(input_vector_dense, neg_vector_dense)
+
+    # Calculate the final score by subtracting the negative similarity from the positive similarity
+    final_score = pos_similarity - neg_similarity
+    
+    print("Score:", final_score)
+    print("For:", text_input[:20])  # Print only the first 20 characters of the input for brevity
+    
+    return final_score
 
 # Function to check if a domain is banned
 def is_banned_domain(domain):
@@ -247,26 +323,36 @@ def write_batch_to_csv(csv_filename):
 
         batch_writing_in_progress = False  # Reset flag after writing
 
+# Load visited URLs from CSV
+def initialize_visited_from_csv(csv_filename):
+    try:
+        # Load the CSV and extract the 'URL' column
+        df = pd.read_csv(csv_filename, usecols=['url'])  # Replace 'URL' with the actual column name if different
+        visited_urls = set(df['url'].dropna())  # Drop any NaN values and convert to set
+    except FileNotFoundError:
+        logging.warning(f"{csv_filename} not found. Starting with an empty visited set.")
+        visited_urls = set()
+    return visited_urls
 
 # Function to scrape links from a page recursively with depth control
 def scrape_links_from_page(url_tuple, csv_filename, current_depth=0):
-    visited = set()
+    # Initialize visited set with URLs from CSV
+    visited = initialize_visited_from_csv(csv_filename)
     # Unpack tuple
+    print(url_tuple)
     source, url, max_depth = url_tuple
 
     if url in visited or current_depth > max_depth:
+        print(f"{url} already visited; skipping...")
         return
 
     visited.add(url)
     logging.info(f"Scraping {url} at depth {current_depth}")
 
+    # Scrape content from the URL
     page_content, error = scrape_link_content(url)
 
-    # if error:
-    #     non_working_links.append((url, error))
-    #     return
-
-    if page_content and contains_keywords(page_content):
+    if page_content and score_new_document(page_content)>0:
         update_csv_batch(csv_filename, url, source, page_content)
 
     try:
@@ -295,12 +381,13 @@ def scrape_links_from_page(url_tuple, csv_filename, current_depth=0):
     except Exception as e:
         logging.error(f"Error extracting links from {url}: {e}")
     finally:
-        driver.quit()  # Close the browser
+        driver.quit() 
 
 # Function to scrape links in parallel
 def parallel_scrape(start_urls, directory):
-    # non_working_links = []
-
+    # Ensure all start URLs are correctly formatted with (source, url, max_depth)
+    start_urls = [url_tuple for url_tuple in start_urls if len(url_tuple) == 3]
+    
     base_directory = f"recursive_data/{directory}"
     if not os.path.exists(base_directory):
         os.makedirs(base_directory)

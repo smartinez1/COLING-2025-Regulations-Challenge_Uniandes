@@ -5,6 +5,7 @@
 /logs
 /downloads
 /.venv
+osi.csv
 corpus.mm
 corpus.mm.index
 midict.dict
