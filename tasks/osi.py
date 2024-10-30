@@ -4,6 +4,7 @@ import asyncio
 import time 
 import random
 import os
+from tqdm import tqdm
 
 
 BASE_PROMPT = """
@@ -41,11 +42,12 @@ async def generate_osi_qa(data: pd.DataFrame, api_handler: OpenAIPromptHandler, 
     os.makedirs(processed_dir, exist_ok=True)  # Ensure the directory exists
     existing_files = [f for f in os.listdir(processed_dir) if f.endswith('.csv')]
     existing_data = pd.concat([pd.read_csv(os.path.join(processed_dir, f)) for f in existing_files], ignore_index=True) if existing_files else pd.DataFrame()
+    all_responses.append(existing_data) # Append existing data 
 
     # Calculate the number of batches
     num_batches = (len(data) + batch_size - 1) // batch_size
 
-    for i in range(num_batches):
+    for i in tqdm(range(num_batches)):
         # Slice the DataFrame to get the current batch
         batch_data = data.iloc[i * batch_size:(i + 1) * batch_size]
 
@@ -67,13 +69,12 @@ async def generate_osi_qa(data: pd.DataFrame, api_handler: OpenAIPromptHandler, 
         responses = await asyncio.gather(*tasks, return_exceptions=True)
         costs = api_handler.calculate_cost(responses=responses, input_token_price=0.15e-6, output_token_price=0.6e-6)
 
-        current_data = (batch_data[["url","source"]]
+        current_data = (batch_data[["url","source","content"]]
                         .assign(task="osi_qa")
                         .assign(total_tokens = [cost[1] for cost in costs])
                         .assign(generated_text = [response.choices[0].message.content for response in responses])
                         .assign(costs = [cost[0] for cost in costs])
                         )
-
 
         all_responses.extend(current_data)
         time.sleep(random.uniform(0.3,1.2))
@@ -85,7 +86,7 @@ async def main():
 
     results_dir = "results/osi"
     df = pd.read_csv("recursive_data/total/total_cleanedv2.csv")
-    df = df[df.source == "OSI"].head(5)
+    df = df[df.source == "OSI"]
 
     handler = OpenAIPromptHandler()
     qa = await generate_osi_qa(data=df, api_handler=handler, results_dir=results_dir, batch_size=20)

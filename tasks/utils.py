@@ -91,8 +91,6 @@ class OpenAIPromptHandler:
             future = loop.run_in_executor(executor, make_request)
             try:
                 response = await future
-                # Log the successful response for debugging
-                print("Successfully received response:", response)
                 return response
             except Exception as e:
                 logging.error(f"Failed to send prompt: {traceback.print_exc()}")
