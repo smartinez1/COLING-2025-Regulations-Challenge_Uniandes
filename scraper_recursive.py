@@ -58,8 +58,7 @@ clearing, settlement, fintech, digital currency, blockchain, cryptocurrency,
 initial coin offering (ICO), electronic money, payment service, crowdfunding, 
 peer-to-peer lending, robo-advisory, virtual asset, financial innovation, open source, Permissive License, Dual Licensing, Source Code, Binary Form, Distribution, Contribution,
 derivative work, attribution, Patent Grant, warranty, liability, trademark"""
-
-
+ 
 neg_query = """"cookies", "submenu", "toggle", "contact", "help", "home", "about", "navigation", "footer", "header", "sidebar", "dropdown", 
 "sitemap", "login", "register", "user interface", "UI", "UX", "user experience", "breadcrumbs", "carousel", "slider", 
 "accordion", "tab", "widget", "modal", "popup", "overlay", "hamburger menu", "footer menu", "social media links", 
@@ -342,8 +341,11 @@ def scrape_links_from_page(url_tuple, csv_filename, current_depth=0):
     print(url_tuple)
     source, url, max_depth = url_tuple
 
-    if url in visited or current_depth > max_depth:
+    if url in visited:
         print(f"{url} already visited; skipping...")
+        return
+    elif current_depth > max_depth:
+        print(f"{url} Out of depth limits; skipping...")
         return
 
     visited.add(url)
