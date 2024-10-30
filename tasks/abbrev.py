@@ -84,75 +84,68 @@ class OpenAIAbbreviationExtractor(OpenAIPromptHandler):
         return abbreviations
 
 async def main():
-    # Define file paths, parameters, and load data
+    # File and data configurations
     df = pd.read_csv('recursive_data/total/total_cleanedv2.csv')
     csv_filename = 'generated_data/processed_abbreviations.csv'
-    cost_limit = 5  # Set your cost limit in dollars, e.g., $0.05
-    api_cost_per_1k_tokens = 0.0006  # API cost per 1000 tokens in dollars
+    cost_limit = 5.0  # Set in dollars
+    api_cost_per_1k_tokens = 0.0006
 
-    # Initialize or load the CSV file for abbreviation-expansion pairs
+    # Source, link, task, num_tokens, generated, cost
+    # Load or initialize processed data
     if os.path.exists(csv_filename):
         processed_df = pd.read_csv(csv_filename)
-        processed_urls = set(processed_df['url'].unique())  # Track already processed URLs
+        processed_urls = set(processed_df['url'].unique())
     else:
-        processed_df = pd.DataFrame(columns=["url", "result", "cost"])
+        processed_df = pd.DataFrame(columns=["source", "link", "task", "num_tokens", "generated", "cost"])
         processed_urls = set()
 
-    # Filter the main DataFrame
+    # Filter the DataFrame for relevant sources
     filtered_df = df[df['source'].isin(ABBREV)]
 
-    # Initialize the abbreviation extractor
+    # Initialize the extractor
     extractor = OpenAIAbbreviationExtractor(api_cost_per_1k_tokens=api_cost_per_1k_tokens)
-    # Process each row in the filtered DataFrame
-    costs = processed_df['cost'].tolist() if 'cost' in processed_df.columns else []
-    for ind, row in filtered_df.iterrows():
-        source = row["source"]
-        content_text = row["content"]
-        url = row["url"]
+    total_costs = processed_df['cost'].tolist() if 'cost' in processed_df.columns else []
 
-        # Skip row if it has already been processed
+    for ind, row in filtered_df.iterrows():
+        url = row["url"]
+        content_text = row["content"]
+
+        # Skip if already processed
         if url in processed_urls:
             print(f"URL {url} already processed")
             continue
 
-        print(f"Processing URL: {url} from source {source}")
+        print(f"Processing URL: {url}")
 
-        # Extract abbreviations asynchronously
+        # Extract abbreviations asynchronously and calculate cost
         extracted_abbreviations = await extractor.extract_abbreviations(content_text)
-        row_cost = extractor.calculate_cost(len(content_text))  # Adjust token count if needed
-        costs.append(row_cost)
-        cumulative_cost = np.sum(costs)
-        average_cost = np.mean(costs)
-        total_examples = len(filtered_df)
+        row_cost = extractor.calculate_cost([extracted_abbreviations], 0.15e-6, 0.6e-6)  # Adjust token pricing if necessary
+        total_costs.append(row_cost[0][0])
 
-        print(f"Average cost per transaction: {average_cost:.4f}")
+        # Calculate cumulative cost
+        cumulative_cost = np.sum(total_costs)
+        average_cost = np.mean(total_costs)
 
-        # Check if cumulative cost exceeds the limit
+        # Check cost thresholds
         if cumulative_cost > cost_limit:
-            print(f"WARNING: Cumulative cost ${cumulative_cost:.2f} exceeded the limit of ${cost_limit:.2f}. Stopping process.")
+            print(f"Exceeded cost limit: ${cumulative_cost:.2f} (limit: ${cost_limit:.2f}). Stopping.")
             break
-        elif average_cost * total_examples > cost_limit:
-            print(f"WARNING: Expected final cost estimation: ${average_cost * total_examples:.2f} exceeding the limit of ${cost_limit:.2f}. The process may stop before finishing.")
 
-        # Append extracted abbreviations with the URL to processed_df
-        new_entries = pd.DataFrame({
-            'url': [url],  
+        # Source, link, task, num_tokens, generated, cost
+        # Append new data to the DataFrame
+        processed_df = pd.concat([processed_df, pd.DataFrame({
+            'source':[filtered_df["source"]],
+            'link': [url],  
+            'task': "ABBREVIATION",
+            'num_tokens': 
             'result': [json.dumps(extracted_abbreviations)],
-            'cost': [row_cost]
-        })
-        processed_df = pd.concat([processed_df, new_entries])
+            'cost': [row_cost[0][0]]
+        })], ignore_index=True)
 
-        # Save to CSV after processing each row
-        new_entries.to_csv(csv_filename, mode='a', header=not os.path.exists(csv_filename), index=False)
+    # Save results to CSV
+    processed_df.to_csv(csv_filename, index=False)
+    print("Completed processing and saved results.")
 
-        # Mark this URL as processed
-        processed_urls.add(url)
-
-        print("Extracted abbreviations:")
-        pprint(extracted_abbreviations)
-
-    print("All abbreviations processed and saved (or stopped due to cost limit).")
-
-# Entry point
+# Run the main asynchronous function
 if __name__ == "__main__":
     asyncio.run(main())
