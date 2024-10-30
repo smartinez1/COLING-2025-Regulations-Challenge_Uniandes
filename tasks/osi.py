@@ -5,7 +5,10 @@ import time
 import random
 import os
 from tqdm import tqdm
+import uuid
+import logging
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 BASE_PROMPT = """
     Given the following text:
@@ -54,6 +57,7 @@ async def generate_osi_qa(data: pd.DataFrame, api_handler: OpenAIPromptHandler, 
         if not existing_data.empty:
             batch_data = batch_data[~batch_data['url'].isin(existing_data['url'])]
             if batch_data.empty:
+                logging.info("Batch data is empty after existing url verification, skipping batch...")
                 continue  # Skip to the next iteration if all data in the batch has been processed before
         
         # List to store tasks for the current batch
@@ -76,7 +80,9 @@ async def generate_osi_qa(data: pd.DataFrame, api_handler: OpenAIPromptHandler, 
                         .assign(costs = [cost[0] for cost in costs])
                         )
 
-        all_responses.extend(current_data)
+        # Save and append data
+        all_responses.append(current_data)
+        current_data.to_csv(os.path.join(processed_dir,f"{uuid.uuid4().hex[:5]}.csv"),index=False)
         time.sleep(random.uniform(0.3,1.2))
 
     return all_responses
@@ -86,13 +92,14 @@ async def main():
 
     results_dir = "results/osi"
     df = pd.read_csv("recursive_data/total/total_cleanedv2.csv")
-    df = df[df.source == "OSI"]
+    df = (df[df.source == "OSI"]
+          .reset_index(drop=True)
+          .drop_duplicates(subset="url")
+          )
 
     handler = OpenAIPromptHandler()
-    qa = await generate_osi_qa(data=df, api_handler=handler, results_dir=results_dir, batch_size=20)
-
+    qa = await generate_osi_qa(data=df, api_handler=handler, results_dir=results_dir, batch_size=15)
     breakpoint()
-    
 
 
     
