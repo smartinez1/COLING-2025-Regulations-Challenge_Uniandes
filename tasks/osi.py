@@ -30,27 +30,34 @@ SYSTEM_PROMPT = "You are an accurate, articulate and knowledgeable in open sourc
 
 
 
-def generate_osi_qa(data:pd.DataFrame,q_dir:str, api_handler:OpenAIPromptHandler):
+async def generate_osi_qa(data: pd.DataFrame, api_handler: OpenAIPromptHandler):
     """
     Takes in the integrity of documents and generates questions.
     """
+    tasks = []
+    breakpoint()
+    for content in data['content']:
+        prompt = api_handler.construct_prompt(BASE_PROMPT, content)
+        task = asyncio.create_task(api_handler.send_prompt(prompt))
+        tasks.append(task)
+    
+    responses = await api_handler.send_prompts_async(tasks)
+    breakpoint()
 
 
 
-
-
-def main():
+async def main():
 
     df = pd.read_csv("recursive_data/total/total_cleanedv2.csv")
-    df = df[df.source == "OSI"]
-    
+    df = df[df.source == "OSI"].head(1)
 
     handler = OpenAIPromptHandler()
+
+    await generate_osi_qa(data=df, api_handler=handler)
 
 
     
 asyncio.run(main())
-
 
 
 
