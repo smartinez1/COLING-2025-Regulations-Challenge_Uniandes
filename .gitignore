@@ -14,3 +14,4 @@ similmatrix.index.index.npy
 .env
 /env
 *.csv
+.DS_Store
