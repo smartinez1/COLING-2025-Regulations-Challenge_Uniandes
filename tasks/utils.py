@@ -38,13 +38,6 @@ class OpenAIPromptHandler:
     def construct_prompt(self, prompt_template: str, context: str) -> str:
         return prompt_template.format(context=context)
 
-    def get_total_tokens(self, response) -> int:
-        """
-        Takes in a ChatCompletion of response and outputs the amount of tokens used.
-        """
-        usage = response.usage
-        return usage.total_tokens
-
     def calculate_cost(self, responses:list, input_token_price:int, output_token_price:int) -> list:
         """
         Takes in a list of responses and calculates its cost using input/output token pricing 
