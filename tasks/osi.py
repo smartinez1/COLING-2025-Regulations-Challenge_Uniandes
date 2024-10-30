@@ -91,6 +91,7 @@ async def main():
     qa = await generate_osi_qa(data=df, api_handler=handler, results_dir=results_dir, batch_size=20)
 
     breakpoint()
+    
 
 
     
