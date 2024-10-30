@@ -1,7 +1,7 @@
 import os
 import asyncio
-from functools import wraps
 from dotenv import load_dotenv
+from functools import wraps
 from openai import AzureOpenAI
 import concurrent.futures
 import logging
@@ -20,7 +20,8 @@ def async_retry(retries=4, backoff_factor=2.0):
                     return await func(*args, **kwargs)
                 except Exception as e:
                     if attempts == retries:
-                        raise Exception(f"Max retries reached. Last error: {e}")
+                        logging.error(f"Max retries reached. Last error: {traceback.print_exc()}")
+                        return None
                     attempts += 1
                     sleep_time = backoff_factor ** attempts
                     await asyncio.sleep(sleep_time)
@@ -33,18 +34,24 @@ class OpenAIPromptHandler:
         load_dotenv()
         self.api_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         self.deployment_name = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT_NAME")
-        self.api_cost_per_1k_tokens = api_cost_per_1k_tokens
-        # self.headers = {
-        #     "Authorization": f"Bearer {os.getenv('AZURE_OPENAI_API_KEY')}",
-        #     "Content-Type": "application/json"
-        # }
 
     def construct_prompt(self, prompt_template: str, context: str) -> str:
         return prompt_template.format(context=context)
 
-    def calculate_cost(self, token_count: int) -> float:
-        return (token_count * self.api_cost_per_1k_tokens) / 1000
+    def calculate_cost(self, responses:list, input_token_price:int, output_token_price:int) -> list:
+        """
+        Takes in a list of responses and calculates its cost using input/output token pricing 
+        """
+        def _calculate_individual_cost(response, input_token_price:int, output_token_price:int) -> tuple:
+            usage = response.usage
+            return (usage.prompt_tokens * input_token_price) + (usage.completion_tokens * output_token_price), usage.prompt_tokens + usage.completion_tokens
+            
+        costs = []
+        for response in responses:
+                costs.append(_calculate_individual_cost(response, input_token_price, output_token_price)) if response else costs.append(((None,None),None))
 
+
+        return costs 
     @async_retry(retries=4, backoff_factor=2.0)
     async def send_prompt(self, prompt: str, system_prompt:str=None):
         """
@@ -88,8 +95,9 @@ class OpenAIPromptHandler:
                 print("Successfully received response:", response)
                 return response
             except Exception as e:
-                raise Exception(f"Failed to send prompt: {traceback.print_exc()}")
-
+                logging.error(f"Failed to send prompt: {traceback.print_exc()}")
+                raise
+            
     async def send_prompts_async(self, tasks):
         responses = await asyncio.gather(*tasks, return_exceptions=True)
         return responses
