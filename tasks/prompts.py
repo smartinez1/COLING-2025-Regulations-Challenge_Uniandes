@@ -44,7 +44,64 @@ PROMPT_OSI_ABBREV = """
 
 SYSTEM_PROMPT_OSI = "You are an accurate, articulate and knowledgeable in open source licensing knowledge for financial and business applications."
 
+##
+# ABBREVIATIONS, LINKS, Definitions
 
+PROMPT_ABBREV = """
+        Pay close attention to the following text:
+        ```
+        {context}
+        ```
+        extract all abbreviations that appear along with their expanded versions.
+        return them in a numerated list following this format:
+        ```
+        1. <abbreviation> - <expanded version>
+        2. <abbreviation> - <expanded version>
+        .
+        .
+        .
+        n. <abbreviation> - <expanded version>
+        ```
+        ONLY provide this list, nothing else.
+        """
+
+PROMPT_LINKS = """
+        Pay close attention to the following text:
+        ```
+        {context}
+        ```
+        Is the text explaining a law/s or regulation/s explicitly by name? (ej: Regulation (EU) 2019/834)
+        if so, please provide a list with this format:
+        ```
+        1. <law>
+        2. <law>
+        .
+        .
+        n. <law>
+        ```
+        if no law is found, provide an empty response
+        ONLY provide this list, nothing else.
+        """
+
+PROMPT_DEFS = """
+        Pay close attention to the following text:
+        ```
+        {context}
+        ```
+        Are there any content domain specific terms being defined?:
+        if so privide a list of all found terms and ther definitions with this format:
+        ```
+        1. <term> - <definition>
+        2. <term> - <definition>
+        .
+        .
+        n. <term> - <definition>
+        ```
+        if no term is found, provide an empty response
+        ONLY provide this list, nothing else.
+        """
+
+SYSTEM_PROMPT_GENERAL = "You are an accurate transliterator, articulate and knowledgeable in law and regulation for the US and EU"
 
 ## DATA PROCESSOR
 

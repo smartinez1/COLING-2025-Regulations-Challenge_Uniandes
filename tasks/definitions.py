@@ -7,8 +7,8 @@ import os
 from tqdm import tqdm 
 import uuid
 import logging
-from prompts import PROMPT_ABBREV, SYSTEM_PROMPT_GENERAL
-from sources import ABBREV
+from prompts import PROMPT_DEFS, SYSTEM_PROMPT_GENERAL
+from sources import DEFS
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -30,14 +30,14 @@ async def generate_abbrev(data: pd.DataFrame, api_handler: OpenAIPromptHandler, 
     for i in tqdm(range(num_batches)):
         # Slice the DataFrame to get the current batch
         batch_data = data.iloc[i * batch_size:(i + 1) * batch_size]
-        responses, costs = await api_handler.process_batch_task(existing_data, batch_data, PROMPT_ABBREV, SYSTEM_PROMPT_GENERAL)
+        responses, costs = await api_handler.process_batch_task(existing_data, batch_data, PROMPT_DEFS, SYSTEM_PROMPT_GENERAL)
 
         if not responses:
             continue ## If responses are empty, continue with the iteration
         
         breakpoint()
         current_data = (batch_data[["url","source","content"]]
-                        .assign(task="abbrev")
+                        .assign(task="definitions")
                         .assign(total_tokens = [cost[1] for cost in costs])
                         .assign(generated_text = [response.choices[0].message.content for response in responses])
                         .assign(costs = [cost[0] for cost in costs])
@@ -51,10 +51,10 @@ async def generate_abbrev(data: pd.DataFrame, api_handler: OpenAIPromptHandler, 
     return all_responses
 
 async def main():
-    out_path = "abbrev.csv"
-    results_dir = "results/abbrev"
+    out_path = "definitions.csv"
+    results_dir = "results/definitions"
     df = pd.read_csv("recursive_data/total/total_cleanedv2.csv")
-    df = (df[df['source'].isin(ABBREV)]#.head(2)
+    df = (df[df['source'].isin(DEFS)]#.head(2)
           .reset_index(drop=True)
           .drop_duplicates(subset="url")
           )
