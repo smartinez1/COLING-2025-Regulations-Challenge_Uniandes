@@ -163,6 +163,7 @@ class OpenAIPromptHandler:
             if not responses:
                 continue ## If responses are empty, continue with the iteration
             
+            # Adapts response to schema 
             current_data = (batch_data[["url","source","content"]]
                             .assign(task=task)
                             .assign(total_tokens = [cost[1] for cost in costs])
