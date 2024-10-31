@@ -7,44 +7,20 @@ import os
 from tqdm import tqdm
 import uuid
 import logging
+from prompts import PROMPT_OSI_QA, SYSTEM_PROMPT_OSI
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-BASE_PROMPT = """
-    Given the following text:
-    ´´´
-    {context}
-    ´´´
-    Generate question/answer pairs relevant to the text you observe. These questions must be formulated in a way such that:
-    a. The question is focused on knowing more about open source software licensing and applications
-    b. The question must have a financial regulatory intent
-    c. The answer distills knowledge in a concise and factual manner in order to answer the question's intent.
-
-    Return them in a numerated list following this format:
-    ´´´
-    1. <question> - <answer>
-    2. <question> - <answer>
-    .
-    .
-    .
-    n. <question> - <answer>
-    ´´´
-    ONLY provide this list, nothing else, nothing extra.
-"""
-
-SYSTEM_PROMPT = "You are an accurate, articulate and knowledgeable in open source licensing knowledge for financial and business applications."
 
 async def generate_osi_qa(data: pd.DataFrame, api_handler: OpenAIPromptHandler, results_dir: str, batch_size: int = 20):
     """
     Takes in the integrity of documents and generates questions.
     """
     all_responses = []
-
-    # Load existing processed data if available
+    
+    # # Load existing processed data if available
     processed_dir = os.path.join(results_dir, "processed")
-    os.makedirs(processed_dir, exist_ok=True)  # Ensure the directory exists
-    existing_files = [f for f in os.listdir(processed_dir) if f.endswith('.csv')]
-    existing_data = pd.concat([pd.read_csv(os.path.join(processed_dir, f)) for f in existing_files], ignore_index=True) if existing_files else pd.DataFrame()
+    existing_data = api_handler.load_existing_data(results_dir=processed_dir)
     all_responses.append(existing_data) # Append existing data 
 
     # Calculate the number of batches
@@ -53,26 +29,12 @@ async def generate_osi_qa(data: pd.DataFrame, api_handler: OpenAIPromptHandler, 
     for i in tqdm(range(num_batches)):
         # Slice the DataFrame to get the current batch
         batch_data = data.iloc[i * batch_size:(i + 1) * batch_size]
+        responses, costs = await api_handler.process_batch_task(existing_data, batch_data, PROMPT_OSI_QA, SYSTEM_PROMPT_OSI)
 
-        if not existing_data.empty:
-            batch_data = batch_data[~batch_data['url'].isin(existing_data['url'])]
-            if batch_data.empty:
-                logging.info("Batch data is empty after existing url verification, skipping batch...")
-                continue  # Skip to the next iteration if all data in the batch has been processed before
+        if not responses:
+            continue ## If responses are empty, continue with the iteration
         
-        # List to store tasks for the current batch
-        tasks = []
-
-        # Create tasks for the current batch
-        for content in batch_data['content']:
-            prompt = api_handler.construct_prompt(BASE_PROMPT, content)
-            task = asyncio.create_task(api_handler.send_prompt(prompt, system_prompt=SYSTEM_PROMPT))
-            tasks.append(task)
-
-        # Wait for all tasks in the current batch to complete and calculate costs
-        responses = await asyncio.gather(*tasks, return_exceptions=True)
-        costs = api_handler.calculate_cost(responses=responses, input_token_price=0.15e-6, output_token_price=0.6e-6)
-
+        breakpoint()
         current_data = (batch_data[["url","source","content"]]
                         .assign(task="osi_qa")
                         .assign(total_tokens = [cost[1] for cost in costs])
@@ -99,9 +61,11 @@ async def main():
 
     handler = OpenAIPromptHandler()
     qa = await generate_osi_qa(data=df, api_handler=handler, results_dir=results_dir, batch_size=15)
-    breakpoint()
 
-
+    results_complete = pd.concat(qa,ignore_index=True)
+    (results_complete
+    .reset_index(drop=True)
+    .to_csv(os.path.join(results_dir,"osi_qa.csv"),index=False))
     
 asyncio.run(main())
 

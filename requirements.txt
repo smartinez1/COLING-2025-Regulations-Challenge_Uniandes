@@ -13,3 +13,4 @@ wordcloud
 matplotlib
 python-dotenv
 ipykernel
+typer
