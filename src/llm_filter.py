@@ -1,58 +1,44 @@
+import argparse
+import asyncio
 from tasks.utils import OpenAIPromptHandler
+from tasks.prompts import CLASSIF_PROMPT, CLASSIF_SYSTEM, CLEANING_PROMPT, CLEANING_SYSTEM
+import pandas as pd
 
-CLASSIF_PROMPT = """
-Given the following text:
-    ´´´
-    {context}
-    ´´´
+async def text_classif_task(handler: OpenAIPromptHandler):
+    output_path = "results/classif"
+    data = pd.read_csv("recursive_data/total/total_cleanedv2.csv")
 
-Examine the document given and check the following:
-    1. Is the document in English?
-    2. Are the document's contents about topics related to financial regulation, industry standards, compliance processes, open source documentation and licensing?
+    results = await handler.execute_task(results_dir=output_path,
+                                         data=data,
+                                         task="classif",
+                                         task_prompt=CLASSIF_PROMPT,
+                                         system_prompt=CLASSIF_SYSTEM,
+                                         batch_size=15)
+
+
+async def text_cleaning_task(handler: OpenAIPromptHandler):
+    output_path = "results/cleaning"
+    data = pd.read_csv("recursive_data/total/total_cleanedv2.csv")  # Assuming you have a path for the CSV
+
+    results = await handler.execute_task(results_dir=output_path,
+                                         data=data,
+                                         task="cleaning",
+                                         task_prompt=CLEANING_PROMPT,
+                                         system_prompt=CLEANING_SYSTEM,
+                                         batch_size=15)
     
+    breakpoint()
 
-    If either of them is false, then say "no", otherwise say "yes". Output your choice only.
-"""
+async def main():
+    parser = argparse.ArgumentParser(description="Execute text classification or cleaning tasks.")
+    parser.add_argument("task", type=str, choices=["classif", "cleaning"], help="The task to execute: 'classif' for classification, 'cleaning' for data cleaning.")
+    args = parser.parse_args()
 
-
-CLEANING_PROMPT = """
-Given the following text:
-    ´´´
-    {context}
-    ´´´
-
-Examine the given document and clean its contents. I'd like you to do the following:
-    1. Cut off irrelevant parts of the text that are involved with social media links or with a site's navigation menu.
-    2. Summarize the text so that it is more concise in its ideas and facts.
-
-The resulting text must not differ much in its contents. It is for restructuring purposes only. Output the summary text.
-
-<text>
-"""
-
-
-
-
-CLASSIF_SYSTEM = """
-You are an expert in financial regulation and compliance, managing knowledge from both the USA and Europe, You are also well versed in open source technologies.
-"""
-
-CLEANING_SYSTEM = """
-You are a diligent editor and proofreader expert in cleaning articles.
-"""
-
-class LLMFilter(OpenAIPromptHandler):
-
-    pass
-
-
-
-
-
-def main():
-    pass
-
-
+    handler = OpenAIPromptHandler()
+    if args.task == "classif":
+        await text_classif_task(handler)
+    elif args.task == "cleaning":
+        await text_cleaning_task(handler)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

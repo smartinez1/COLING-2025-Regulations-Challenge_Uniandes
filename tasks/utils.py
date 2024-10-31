@@ -7,6 +7,10 @@ import concurrent.futures
 import logging
 import traceback
 import pandas as pd
+from tqdm import tqdm
+import time
+import random
+import uuid
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -136,3 +140,39 @@ class OpenAIPromptHandler:
         costs = self.calculate_cost(responses=responses, input_token_price=0.15e-6, output_token_price=0.6e-6)
 
         return responses, costs
+    
+    async def execute_task(self, results_dir:str, data:pd.DataFrame, task:str,task_prompt:str, system_prompt:str = None, batch_size:int=20):
+        """
+        Takes in the integrity of documents and generates questions.
+        """
+        all_responses = []
+        
+        # # Load existing processed data if available
+        processed_dir = os.path.join(results_dir, "processed")
+        existing_data = self.load_existing_data(results_dir=processed_dir)
+        all_responses.append(existing_data) # Append existing data 
+
+        # Calculate the number of batches
+        num_batches = (len(data) + batch_size - 1) // batch_size
+
+        for i in tqdm(range(num_batches)):
+            # Slice the DataFrame to get the current batch
+            batch_data = data.iloc[i * batch_size:(i + 1) * batch_size]
+            responses, costs = await self.process_batch_task(existing_data, batch_data, task_prompt, system_prompt)
+
+            if not responses:
+                continue ## If responses are empty, continue with the iteration
+            
+            current_data = (batch_data[["url","source","content"]]
+                            .assign(task=task)
+                            .assign(total_tokens = [cost[1] for cost in costs])
+                            .assign(generated_text = [response.choices[0].message.content for response in responses])
+                            .assign(costs = [cost[0] for cost in costs])
+                            )
+
+            # Save and append data
+            all_responses.append(current_data)
+            current_data.to_csv(os.path.join(processed_dir,f"{uuid.uuid4().hex[:5]}.csv"),index=False)
+            time.sleep(random.uniform(0.3,1.2))
+
+        return all_responses
