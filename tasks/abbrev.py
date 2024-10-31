@@ -13,7 +13,7 @@ from sources import ABBREV
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-async def generate_abbrev(data: pd.DataFrame, api_handler: OpenAIPromptHandler, results_dir: str, batch_size: int = 20):
+async def generate(data: pd.DataFrame, api_handler: OpenAIPromptHandler, results_dir: str, batch_size: int = 20):
     """
     Takes in the integrity of documents and generates questions.
     """
@@ -51,7 +51,7 @@ async def generate_abbrev(data: pd.DataFrame, api_handler: OpenAIPromptHandler, 
     return all_responses
 
 async def main():
-    out_path = "abbrev.csv"
+    out_name = "abbrev"
     results_dir = "results/abbrev"
     df = pd.read_csv("recursive_data/total/total_cleanedv2.csv")
     df = (df[df['source'].isin(ABBREV)]#.head(2)
@@ -60,11 +60,11 @@ async def main():
           )
 
     handler = OpenAIPromptHandler()
-    abbrev = await generate_abbrev(data=df, api_handler=handler, results_dir=results_dir, batch_size=15)
+    abbrev = await generate(data=df, api_handler=handler, results_dir=results_dir, batch_size=15)
 
     results_complete = pd.concat(abbrev, ignore_index=True)
     (results_complete
     .reset_index(drop=True)
-    .to_csv(os.path.join(results_dir,f"{out_path}.csv"),index=False))
+    .to_csv(os.path.join(results_dir,f"{out_name}.csv"),index=False))
 
 asyncio.run(main())

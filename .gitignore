@@ -1,11 +1,9 @@
 /recursive_data
-/generated_data
 /QA
 /LR
 /logs
 /downloads
 /.venv
-osi.csv
 corpus.mm
 corpus.mm.index
 midict.dict
@@ -13,6 +11,6 @@ mycorpusGensim.txt
 similmatrix.index
 similmatrix.index.index.npy
 .env
-/env
 *.csv
-.DS_Store
+osi.csv
+/results
