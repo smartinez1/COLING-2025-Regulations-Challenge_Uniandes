@@ -17,17 +17,6 @@ API_KEY_MINI = os.getenv("AZURE_OPENAI_API_KEY")
 API_BASE_GPMINI = os.getenv("AZURE_OPENAI_ENDPOINT")
 API_DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT_NAME")
 
-class ContextWithAbbreviations(BaseModel):
-    """
-    Pydantic model to represent the context and its associated abbreviations.
-
-    Attributes:
-        text (str): The original text from which abbreviations are extracted.
-        abbreviations (Dict[str, str]): A dictionary mapping abbreviations to their expanded versions.
-    """
-    text: str
-    abbreviations: Dict[str, str]
-
 def extract_abbreviations(context: str) -> List[str]:
     """
     Extracts abbreviations from a given context using the OpenAI API.
@@ -149,10 +138,10 @@ def estimate_cost_and_extract_abbreviations(context_text, api_cost_per_1k_tokens
 
 if __name__ == "__main__":
     # Define file paths and parameters and load data
-    df = pd.read_csv('recursive_data/total/total_cleanedv2.csv')
+    df = pd.read_csv('recursive_data/total/total_cleaned.csv')
     csv_filename = 'generated_data/processed_abbreviations.csv'
     cost_limit = 0.5  # Set your cost limit in dollars, e.g., $0.05
-    api_cost_per_1k_tokens = 0.000150  # API cost per 1000 tokens in dollars
+    api_cost_per_1k_tokens = 0.0006  # API cost per 1000 tokens in dollars
 
     # Initialize or load the CSV file for abbreviation-expansion pairs
     if os.path.exists(csv_filename):
