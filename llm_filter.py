@@ -6,7 +6,7 @@ import pandas as pd
 
 async def text_classif_task(handler: OpenAIPromptHandler):
     output_path = "results/classif"
-    data = pd.read_csv("recursive_data/total/total_cleanedv2.csv").head(20)
+    data = pd.read_csv("recursive_data/total/total_cleanedv2.csv").sample(20)
     results = await handler.execute_task(results_dir=output_path,
                                          data=data,
                                          task="classif",
@@ -19,7 +19,7 @@ async def text_classif_task(handler: OpenAIPromptHandler):
 
 async def text_cleaning_task(handler: OpenAIPromptHandler):
     output_path = "results/cleaning"
-    data = pd.read_csv("recursive_data/total/total_cleanedv2.csv")  # Assuming you have a path for the CSV
+    data = pd.read_csv("recursive_data/total/total_cleanedv2.csv").sample(2)  # Assuming you have a path for the CSV
 
     results = await handler.execute_task(results_dir=output_path,
                                          data=data,
