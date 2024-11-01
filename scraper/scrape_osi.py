@@ -5,8 +5,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 from tqdm import tqdm
+import pandas as pd
 import requests
 import time
+import re
+
 # Initialize the Chrome options
 chrome_options = Options()
 chrome_options.add_argument("--headless")
@@ -26,8 +29,14 @@ def extract_paragraph_text(links):
         try:
             response = requests.get(link)
             soup = BeautifulSoup(response.content, 'html.parser')
-            paragraphs = soup.find_all('p')
-            text = ' '.join([p.get_text() for p in paragraphs])
+            # Find the div that contains the license information
+            license_content_div = soup.find('div', class_='entry-content post--content license-content')
+
+            # Extract and print the text within this div
+            if license_content_div:
+                text = license_content_div.get_text(strip=True)
+            else:
+                print("License information not found.")
             result.append((link, text))
         except requests.exceptions.RequestException as e:
             print(f"Error fetching {link}: {e}")
@@ -59,13 +68,18 @@ for page_num in range(1, num_pages + 1):
             document_links.append(href)
 
 
-text_tuples = extract_paragraph_text(document_links)
-for link, text in text_tuples:
-    print(f"Link: {link}")
-    print(f"Concatenated text: {text}")
-    print("-" * 80)
+# Define the regex pattern
+pattern = r'^https://opensource\.org/license/[^/]+$'
 
-breakpoint()
+# Filter the list using the pattern
+filtered_links = [link for link in document_links if re.match(pattern, link)]
+text_tuples = extract_paragraph_text(filtered_links)
+
+data = (pd.DataFrame()
+        .assign(url = [_tuple[0] for _tuple in text_tuples])
+        .assign(source = "OSI")
+        .assign(content = [_tuple[1] for _tuple in text_tuples])
+        ).to_csv("osi.csv",index=False)
 
 # Close the WebDriver
 driver.quit()

@@ -15,16 +15,16 @@ def store_total_result(results:list[pd.DataFrame], store_dir:str, task_name:str)
 async def osi_qa_task(handler: OpenAIPromptHandler):
     output_path = "results/osi_qa"
     task_name = output_path.split('/')[-1]
-    data = pd.read_csv("recursive_data/total/total_cleanedv2.csv")
+    data = pd.read_csv("osi.csv")
     data = data[data.source == "OSI"].head(30)  # Assuming you have a path for the CSV
     results = await handler.execute_task(results_dir=output_path,
                                          data=data,
                                          task=task_name,
                                          task_prompt=PROMPT_OSI_QA,
                                          system_prompt=SYSTEM_PROMPT_OSI,
-                                         batch_size=10)
+                                         batch_size=15)
     
-    breakpoint()
+    store_total_result(results,output_path, task_name)
 
 
 async def osi_abbrev_task(handler: OpenAIPromptHandler):

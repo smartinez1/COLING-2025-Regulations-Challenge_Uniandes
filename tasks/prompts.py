@@ -106,3 +106,12 @@ ABBREV = ["EUR-LEX",
           "SBOA",
           "NYSE"
           ]
+
+
+QA_TASK = ["SEC",
+           "FED",
+           "FDIC",
+           "III",
+           "FASAB",
+           "SBOA"
+           ]
