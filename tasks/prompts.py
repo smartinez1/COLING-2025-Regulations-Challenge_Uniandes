@@ -132,6 +132,10 @@ Examine the given document and clean its contents. I'd like you to do the follow
     2. Cut off irrelevant parts of the text that are involved with social media links, a site's navigation menu, html markers or other unnecessary symbols.
     3. Get rid of unnecessary spaces between letters
     4. Separate words that seem to be stuck together
+    5. Remove Tabular Data
+    6. Remove artifacts that may come from ocr
+    7. Remove numeric data that is not related to your domain.
+    8. Do not summarize, be textual with the content.
 ONLY provide the cleaned text, nothing more.
 """
 
@@ -143,7 +147,7 @@ You are an expert in financial regulation and compliance, managing knowledge fro
 """
 
 CLEANING_SYSTEM = """
-You are a diligent editor and proofreader expert in cleaning articles and dirty text data.
+You are a diligent editor and proofreader expert in cleaning articles and dirty text data. You are only concerned with technical text data and not chart data.
 """
 
 
