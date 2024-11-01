@@ -27,7 +27,7 @@ SCRAP_LINKS = [
                 # ("OSI","https://opensource.org/licenses",4)    
                  ] #TODO: When we handle pdfs, scrape the last link
 SCRAP_LINKS_SEC = [
-                ("SEC","https://www.sec.gov/",4),
+                ("SEC","https://www.sec.gov/", 4),
                 ("SEC","https://www.sec.gov/rules-regulations",3),
                 ("SEC", "https://www.sec.gov/enforcement-litigation", 3),
                 ("SEC", "https://www.sec.gov/compliance", 3)

@@ -16,7 +16,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
-from scraper_links import BANNED_DOMAINS, SCRAP_LINKS
+from scraper_links import BANNED_DOMAINS, SCRAP_LINKS, SCRAP_LINKS_SEC
 import traceback
 import numpy as np
 import threading
@@ -91,6 +91,8 @@ def preprocess_text(text: str):
 
 # Batching settings
 BATCH_SIZE = 10 
+PROCESS_INIT = False
+visited = []
 batch_writing_in_progress = False 
 
 # Function to download and extract content from PDFs and DOCX files
@@ -246,7 +248,7 @@ def score_new_document(text_input, pos_query=pos_query, neg_query=neg_query):
     final_score = pos_similarity - neg_similarity
     
     print("Score:", final_score)
-    print("For:", text_input[:20])  # Print only the first 20 characters of the input for brevity
+    print("For:", text_input[:20])
     
     return final_score
 
@@ -294,16 +296,12 @@ def update_csv_batch(csv_filename, url, source, page_content):
         if len(batch_data) >= BATCH_SIZE:
             write_batch_to_csv(csv_filename)
 
-            # Reset the batch after writing
-            batch_data = []
-
 # Function to write the accumulated batch to the CSV file
 def write_batch_to_csv(csv_filename):
     global batch_data, batch_writing_in_progress
-
+    batch_writing_in_progress = True  # Set flag before writing
     # Acquire the lock and set the flag to indicate batch writing in progress
     with batch_lock:
-        batch_writing_in_progress = True  # Set flag before writing
 
         if len(batch_data) > 0:
             # Convert the batch data to a DataFrame
@@ -324,28 +322,27 @@ def write_batch_to_csv(csv_filename):
 
 # Load visited URLs from CSV
 def initialize_visited_from_csv(csv_filename):
+    global visited
     try:
         # Load the CSV and extract the 'URL' column
         df = pd.read_csv(csv_filename, usecols=['url'])  # Replace 'URL' with the actual column name if different
-        visited_urls = set(df['url'].dropna())  # Drop any NaN values and convert to set
+        visited = set(df['url'].dropna())  # Drop any NaN values and convert to set
     except FileNotFoundError:
         logging.warning(f"{csv_filename} not found. Starting with an empty visited set.")
-        visited_urls = set()
-    return visited_urls
+        visited = set()
 
 # Function to scrape links from a page recursively with depth control
 def scrape_links_from_page(url_tuple, csv_filename, current_depth=0):
-    # Initialize visited set with URLs from CSV
-    visited = initialize_visited_from_csv(csv_filename)
+    global visited
     # Unpack tuple
     print(url_tuple)
     source, url, max_depth = url_tuple
-
     if url in visited:
         print(f"{url} already visited; skipping...")
+        write_batch_to_csv(csv_filename) # Write when max depth is reached to avoid losing data 
         return
     elif current_depth > max_depth:
-        print(f"{url} Out of depth limits; skipping...")
+        write_batch_to_csv(csv_filename) # Write when max depth is reached to avoid losing data 
         return
 
     visited.add(url)
@@ -353,7 +350,6 @@ def scrape_links_from_page(url_tuple, csv_filename, current_depth=0):
 
     # Scrape content from the URL
     page_content, error = scrape_link_content(url)
-
     if page_content and score_new_document(page_content)>0:
         update_csv_batch(csv_filename, url, source, page_content)
 
@@ -387,14 +383,23 @@ def scrape_links_from_page(url_tuple, csv_filename, current_depth=0):
 
 # Function to scrape links in parallel
 def parallel_scrape(start_urls, directory):
+    global visited
     # Ensure all start URLs are correctly formatted with (source, url, max_depth)
     start_urls = [url_tuple for url_tuple in start_urls if len(url_tuple) == 3]
     
-    base_directory = f"recursive_data/{directory}"
+    base_directory = f"recursive_data//{directory}"
     if not os.path.exists(base_directory):
         os.makedirs(base_directory)
 
+    # Ensure base directory exists
+    if not os.path.exists(base_directory):
+        os.makedirs(base_directory)
+
+    # Create the CSV file if it doesn't exist
     csv_filename = os.path.join(base_directory, generate_csv_filename(directory))
+
+    # Initialize visited set with URLs from CSV
+    initialize_visited_from_csv(csv_filename)
 
     with ThreadPoolExecutor() as executor:
         futures = {executor.submit(scrape_links_from_page, url_tuple, csv_filename): url_tuple for url_tuple in start_urls}
@@ -404,6 +409,30 @@ def parallel_scrape(start_urls, directory):
             except Exception as e:
                 logging.error(f"Error in scraping task: {e}")
 
+
+def sequential_scrape(start_urls, directory):
+    global visited
+    # Ensure all start URLs are correctly formatted with (source, url, max_depth)
+    start_urls = [url_tuple for url_tuple in start_urls if len(url_tuple) == 3]
+    
+    base_directory = f"recursive_data//{directory}"
+    if not os.path.exists(base_directory):
+        os.makedirs(base_directory)
+
+    # Ensure base directory exists
+    if not os.path.exists(base_directory):
+        os.makedirs(base_directory)
+    csv_filename = os.path.join(base_directory, generate_csv_filename(directory))
+    initialize_visited_from_csv(csv_filename)
+
+    # Sequentially process each URL in start_urls981
+    for url_tuple in tqdm(start_urls, total=len(start_urls)):
+        try:
+            # Call the scraping function for each URL
+            scrape_links_from_page(url_tuple, csv_filename)
+        except Exception as e:
+            logging.error(f"Error in scraping task: {e}")
+
     # if non_working_links:
     #     df_non_working = pd.DataFrame(non_working_links, columns=["url", "error_reason"])
     #     df_non_working.to_csv(os.path.join(base_directory, "non_working_links.csv"), index=False)
@@ -411,3 +440,4 @@ def parallel_scrape(start_urls, directory):
 
 if __name__ == "__main__":
     parallel_scrape(start_urls=SCRAP_LINKS, directory="total")
+    # sequential_scrape(start_urls=SCRAP_LINKS_SEC, directory="sec")
