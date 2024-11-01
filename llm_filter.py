@@ -6,8 +6,8 @@ import pandas as pd
 
 async def text_classif_task(handler: OpenAIPromptHandler):
     output_path = "results/classif"
-    # data = pd.read_csv("recursive_data/total/total_cleanedv2.csv").sample(20)
-    data = pd.read_csv("high_trash.csv")
+    data = pd.read_csv("recursive_data/total/total_cleanedv2.csv").sample(20)
+    # data = pd.read_csv("high_trash.csv")
     results = await handler.execute_task(results_dir=output_path,
                                          data=data,
                                          task="classif",

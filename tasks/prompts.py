@@ -128,18 +128,18 @@ Given the following text:
     ´´´
 
 Examine the given document and clean its contents. I'd like you to do the following:
-    1. Keep the core information as is, do not change facts, dates or any other relevant information.
+    1. Keep the information as is, do not change facts, dates, etc.
     2. Cut off irrelevant parts of the text that are involved with social media links, a site's navigation menu, html markers or other unnecessary symbols.
-    3. Get rid of unnecessary spaces between letters
-    4. Separate words that seem to be stuck together
-    5. Remove Tabular Data
-    6. Remove artifacts that may come from ocr
-    7. Remove numeric data that is not related to your domain.
-    8. Do not summarize, be textual with the content.
+    3. Remove incoherent text
+    4. Name of laws, regulations along with abbreviations and other such data MUST be kept.
+    5. Get rid of unnecessary spaces between letters
+    6. Use spaces bewtween words that seem to be stuck together
+    7. Remove Tabular Data
+    8. Remove artifacts that may come from ocr
+    9. Remove numeric data that is not related to your domain.
+    10. Do not summarize, be textual with the content.
 ONLY provide the cleaned text, nothing more.
 """
-
-
 
 
 CLASSIF_SYSTEM = """

@@ -174,15 +174,6 @@ class OpenAIPromptHandler:
             time.sleep(random.uniform(0.3,1.2))
 
         return all_responses
-<<<<<<< HEAD
-
-def store_total_result(results:list[pd.DataFrame], store_dir:str, task_name:str) -> None:
-    """
-    Stores total results into a directory
-    """
-    total = pd.concat(results,ignore_index=True)
-    total.to_csv(os.path.join(store_dir,f"{task_name}.csv",index=False))
-=======
     
 
     def store_total_result(self, results:list[pd.DataFrame], store_dir:str, task_name:str) -> None:
@@ -191,4 +182,3 @@ def store_total_result(results:list[pd.DataFrame], store_dir:str, task_name:str)
         """
         total = pd.concat(results,ignore_index=True)
         total.to_csv(os.path.join(store_dir,f"{task_name}.csv"),index=False)
->>>>>>> sexius

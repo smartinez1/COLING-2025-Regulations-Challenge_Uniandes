@@ -24,8 +24,6 @@ async def abbreviation_task(handler: OpenAIPromptHandler):
                                          system_prompt=SYSTEM_PROMPT_OSI,
                                          batch_size=10)
     
-<<<<<<< HEAD
-=======
     breakpoint()
 
 
@@ -44,7 +42,6 @@ async def osi_abbrev_task(handler: OpenAIPromptHandler):
                                          batch_size=15)
     
     store_total_result(results,output_path, task_name)
->>>>>>> sexius
 
 
 async def main():

@@ -6,10 +6,9 @@ BANNED_DOMAINS = [
     "threads.net"
 ]
 
-SCRAP_LINKS = [("EUR-LEX","https://eur-lex.europa.eu/oj/direct-access.html",4),
+SCRAP_LINKS = [
+                ("EUR-LEX","https://eur-lex.europa.eu/oj/direct-access.html",4),
                 ("ESMA","https://www.esma.europa.eu/",4),
-                ("SEC","https://www.sec.gov/",4),
-                ("SEC_RULES","https://www.sec.gov/rules-regulations",3),
                 ("CFTC","https://www.cftc.gov/",4),
                 ("FINRA","https://www.finra.org/registration-exams-ce/qualification-exams/terms-and-acronyms",2),
                 ("FED","https://www.federalreserve.gov/",4),
@@ -26,12 +25,11 @@ SCRAP_LINKS = [("EUR-LEX","https://eur-lex.europa.eu/oj/direct-access.html",4),
                 ("CDM","https://cdm.finos.org/",4),
                 ("FINOS","https://www.finos.org/faq",1),
                 # ("OSI","https://opensource.org/licenses",4)    
-                ] #TODO: When we handle pdfs, scrape the last link
-
-<<<<<<< HEAD
+                 ] #TODO: When we handle pdfs, scrape the last link
+SCRAP_LINKS_SEC = [
+                ("SEC","https://www.sec.gov/",4),
+                ("SEC","https://www.sec.gov/rules-regulations",3),
+                ("SEC", "https://www.sec.gov/enforcement-litigation", 3),
+                ("SEC", "https://www.sec.gov/compliance", 3)
+]
 ## TODO: Most of the categories share links, we can just create a mapping to retrieve relevant documents per dataset section
-=======
-## TODO: Most of the categories share links, we can just create a mapping to retrieve relevant documents per dataset section
-
-
->>>>>>> sexius
