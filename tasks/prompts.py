@@ -28,16 +28,16 @@ PROMPT_OSI_ABBREV = """
     Extract all abbreviations that appear along with their expanded versions such that:
     a. The abbreviations have to do with open source licensing
     b. The question must have a financial regulatory intent
-    c. The answer distills knowledge in a concise and factual manner in order to answer the question's intent.
+    c. The answer distills knowledge in a concise and factual manner in order to answer the abbreviation's factual meaning.
 
     Return them in a numerated list following this format:
     ´´´
-    1. <question> - <answer>
-    2. <question> - <answer>
+    1. <abbreviation> - <expanded version>
+    2. <abbreviation> - <expanded version>
     .
     .
     .
-    n. <question> - <answer>
+    n. <abbreviation> - <expanded version>
     ´´´
     ONLY provide this list, nothing else, nothing extra.
 """
@@ -151,3 +151,18 @@ You are a diligent editor and proofreader expert in cleaning articles and dirty 
 """
 
 
+
+### SOURCE CATEGORIES 
+
+ABBREV = ["EUR-LEX", 
+          "ESMA", 
+          "SEC", 
+          "CFTC", 
+          "FINRA",
+          "FED",
+          "FDIC",
+          "III",
+          "FASAB",
+          "SBOA",
+          "NYSE"
+          ]

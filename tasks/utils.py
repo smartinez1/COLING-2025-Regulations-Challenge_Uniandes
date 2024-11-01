@@ -114,21 +114,14 @@ class OpenAIPromptHandler:
         responses = await asyncio.gather(*tasks, return_exceptions=True)
         return responses
     
-    async def process_batch_task(self, existing_data:pd.DataFrame, batch_data:pd.DataFrame ,task_prompt:str, system_prompt:str)-> tuple:
+    async def process_batch_task(self, batch_data:pd.DataFrame, task_prompt:str, system_prompt:str)-> tuple:
         """
         Takes in existing data and the current batch to check for new information. If it exists, it generates tasks and executes them.
         Returns a tuple containing the responses and costs
         """
-
-        if not existing_data.empty:
-            batch_data = batch_data[~batch_data['url'].isin(existing_data['url'])]
-            if batch_data.empty:
-                logging.info("Batch data is empty after existing url verification, skipping batch...")
-                return None, None
         
         # List to store tasks for the current batch
         tasks = []
-
         # Create tasks for the current batch
         for content in batch_data['content']:
             prompt = self.construct_prompt(task_prompt, content)
@@ -158,10 +151,14 @@ class OpenAIPromptHandler:
         for i in tqdm(range(num_batches)):
             # Slice the DataFrame to get the current batch
             batch_data = data.iloc[i * batch_size:(i + 1) * batch_size]
-            responses, costs = await self.process_batch_task(existing_data, batch_data, task_prompt, system_prompt)
 
-            if not responses:
-                continue ## If responses are empty, continue with the iteration
+            if not existing_data.empty:
+                batch_data = batch_data[~batch_data['url'].isin(existing_data['url'])]
+                if batch_data.empty:
+                    logging.info("Batch data is empty after existing url verification, skipping batch...")
+                    continue    
+            
+            responses, costs = await self.process_batch_task(batch_data, task_prompt, system_prompt)
             
             # Adapts response to schema 
             current_data = (batch_data[["url","source","content"]]
@@ -177,6 +174,7 @@ class OpenAIPromptHandler:
             time.sleep(random.uniform(0.3,1.2))
 
         return all_responses
+<<<<<<< HEAD
 
 def store_total_result(results:list[pd.DataFrame], store_dir:str, task_name:str) -> None:
     """
@@ -184,3 +182,13 @@ def store_total_result(results:list[pd.DataFrame], store_dir:str, task_name:str)
     """
     total = pd.concat(results,ignore_index=True)
     total.to_csv(os.path.join(store_dir,f"{task_name}.csv",index=False))
+=======
+    
+
+    def store_total_result(self, results:list[pd.DataFrame], store_dir:str, task_name:str) -> None:
+        """
+        Stores total results into a directory
+        """
+        total = pd.concat(results,ignore_index=True)
+        total.to_csv(os.path.join(store_dir,f"{task_name}.csv"),index=False)
+>>>>>>> sexius

@@ -10,12 +10,13 @@ def store_total_result(results:list[pd.DataFrame], store_dir:str, task_name:str)
     Stores total results into a directory
     """
     total = pd.concat(results,ignore_index=True)
-    total.to_csv(os.path.join(store_dir,f"{task_name}.csv",index=False))
+    total.to_csv(os.path.join(store_dir,f"{task_name}.csv"),index=False)
 
 async def abbreviation_task(handler: OpenAIPromptHandler):
     output_path = "results/abbrev"
     task_name = output_path.split('/')[-1]
-    data = pd.read_csv("recursive_data/total/total_cleanedv2.csv").head(20)
+    data = pd.read_csv("recursive_data/total/total_cleanedv2.csv")
+    data = data[data.source == "OSI"].head(30)  # Assuming you have a path for the CSV
     results = await handler.execute_task(results_dir=output_path,
                                          data=data,
                                          task=task_name,
@@ -23,6 +24,27 @@ async def abbreviation_task(handler: OpenAIPromptHandler):
                                          system_prompt=SYSTEM_PROMPT_OSI,
                                          batch_size=10)
     
+<<<<<<< HEAD
+=======
+    breakpoint()
+
+
+async def osi_abbrev_task(handler: OpenAIPromptHandler):
+    output_path = "results/osi_abbrev"
+    task_name = output_path.split('/')[-1]
+    data = pd.read_csv("recursive_data/total/total_cleanedv2.csv")
+    data = data[data.source == "OSI"]  # Assuming you have a path for the CSV
+
+
+    results = await handler.execute_task(results_dir=output_path,
+                                         data=data,
+                                         task=task_name,
+                                         task_prompt=PROMPT_OSI_ABBREV,
+                                         system_prompt=SYSTEM_PROMPT_OSI,
+                                         batch_size=15)
+    
+    store_total_result(results,output_path, task_name)
+>>>>>>> sexius
 
 
 async def main():

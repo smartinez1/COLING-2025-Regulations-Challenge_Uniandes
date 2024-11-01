@@ -28,4 +28,10 @@ SCRAP_LINKS = [("EUR-LEX","https://eur-lex.europa.eu/oj/direct-access.html",4),
                 # ("OSI","https://opensource.org/licenses",4)    
                 ] #TODO: When we handle pdfs, scrape the last link
 
+<<<<<<< HEAD
 ## TODO: Most of the categories share links, we can just create a mapping to retrieve relevant documents per dataset section
+=======
+## TODO: Most of the categories share links, we can just create a mapping to retrieve relevant documents per dataset section
+
+
+>>>>>>> sexius
