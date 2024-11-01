@@ -31,8 +31,7 @@ async def osi_abbrev_task(handler: OpenAIPromptHandler):
     output_path = "results/osi_abbrev"
     task_name = output_path.split('/')[-1]
     data = pd.read_csv("recursive_data/total/total_cleanedv2.csv")
-    data = data[data.source == "OSI"].head(30)  # Assuming you have a path for the CSV
-    breakpoint()
+    data = data[data.source == "OSI"]  # Assuming you have a path for the CSV
 
 
     results = await handler.execute_task(results_dir=output_path,
