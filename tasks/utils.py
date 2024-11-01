@@ -83,8 +83,7 @@ class OpenAIPromptHandler:
         Returns:
             dict: Response content from the OpenAI API with generated abbreviations.
         """
-
- 
+        
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
