@@ -15,3 +15,4 @@ similmatrix.index.index.npy
 *.csv
 osi.csv
 /results
+/SEC_data
