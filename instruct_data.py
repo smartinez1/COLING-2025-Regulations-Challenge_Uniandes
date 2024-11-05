@@ -53,7 +53,7 @@ def link_retrieval_task():
             # Create prompts for each law
             for law in laws:
                 prompt = {
-                    "instruction": "Provide a link for the specified law.",
+                    "instruction": "Provide a link for {} law.",
                     "input": f"{law}",
                     "output": f"{law}: {url}" if url else f"{law}: Not able to find a link for the law"
                 }
@@ -92,7 +92,7 @@ def abbreviation_recognition_task(csv_):
     # Create prompts in the JSON structure for each unique abbreviation
     for acronym, expansion in abbreviation_dict.items():
         prompt = {
-            "instruction": "Expand the following acronym into its full form.",
+            "instruction": "Expand the following acronym into its full form:{}",
             "input": f"{acronym}",
             "output": f"{expansion}"
         }
@@ -128,7 +128,7 @@ def definitions_recognition_task():
     # Create prompts in the JSON structure for each unique abbreviation
     for result, answer in result_dict.items():
         prompt = {
-            "instruction": "Define the following term.",
+            "instruction": "Define the following term:{}",
             "input": f"{result}",
             "output": f"{answer}"
         }
@@ -168,7 +168,7 @@ def qa_task(csv_):
     # Create prompts in the JSON structure for each unique abbreviation
     for result, answer in result_dict.items():
         prompt = {
-            "instruction": "Provide a concise answer to the following question: Answer:",
+            "instruction": "Provide a concise answer to the following question {}: Answer:",
             "input": f"{result}",
             "output": f"{answer}"
         }
