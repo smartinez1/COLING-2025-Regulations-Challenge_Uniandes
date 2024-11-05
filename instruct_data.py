@@ -109,6 +109,49 @@ def process_task(instruction_prompt: str, csv_file_suffix: str):
 
     save_json(output_data, f"{csv_file_suffix}_prompts.json")
 
+def consolidate_json_files(output_file: str = "consolidated.json"):
+    """
+    Consolidates and deduplicates all JSON files in FOLDER_PATH into a single JSON file.
+    Removes duplicate outputs for abbreviations and definitions tasks.
+
+    Args:
+        output_file (str): The name of the output consolidated JSON file.
+    """
+    all_data = []
+    unique_prompts = {}  # Dictionary to store unique input-output pairs
+
+    for file_name in os.listdir(FOLDER_PATH):
+        if file_name.endswith("_prompts.json"):
+            file_path = os.path.join(FOLDER_PATH, file_name)
+            with open(file_path, "r") as f:
+                file_data = json.load(f)
+                
+                for entry in file_data:
+                    task_type = None
+                    try:
+                        if "Expand the following acronym" in entry["instruction"]:
+                            task_type = "abbreviation"
+                    except TypeError:
+                        breakpoint()
+                    
+                    key = (entry["instruction"], entry["input"])  # Unique key for input-instruction pair
+                    
+                    # For abbreviations and definitions, keep only the first unique entry per input
+                    if task_type=="abbreviation":
+                        if key not in unique_prompts:
+                            unique_prompts[key] = entry
+                    else:
+                        all_data.append(entry)  # Directly add other task entries
+
+    # Add unique abbreviation and definition entries to the final data
+    all_data.extend(unique_prompts.values())
+
+    consolidated_file = os.path.join(FOLDER_PATH, output_file)
+    with open(consolidated_file, "w") as f:
+        json.dump(all_data, f, indent=4)
+    print(f"Consolidated data saved to '{consolidated_file}'.")
+
+
 if __name__ == "__main__":
     choices=['link', 'abbrev', 'abbrev_osi', 'definition', 'qa', 'qa_osi', 'all']
     parser = argparse.ArgumentParser(description="Process CSV files for various tasks.")
@@ -132,3 +175,4 @@ if __name__ == "__main__":
         for choice in choices:
             if choice!='all':
                 task_map[choice]() 
+        consolidate_json_files()
