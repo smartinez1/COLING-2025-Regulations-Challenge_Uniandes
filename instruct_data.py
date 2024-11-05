@@ -100,7 +100,7 @@ def process_task(instruction_prompt: str, csv_file_suffix: str):
 
     output_data = [
         {
-            "instruction": instruction_prompt.format(term_or_question),
+            "instruction": instruction_prompt,
             "input": term_or_question,
             "output": definition_or_answer
         }
