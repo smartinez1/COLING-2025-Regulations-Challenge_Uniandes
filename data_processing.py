@@ -1,8 +1,12 @@
+import argparse
+import os
+import asyncio
 import pandas as pd
-import numpy as np
 import logging
 from gensim.parsing.preprocessing import remove_stopwords
 from gensim.parsing.porter import PorterStemmer
+from tasks.utils import OpenAIPromptHandler
+from tasks.prompts import CLEANING_SYSTEM, CLEANING_PROMPT, CLASSIF_PROMPT, CLASSIF_SYSTEM
 from nltk.tokenize import RegexpTokenizer
 from gensim import corpora, models, similarities
 from smart_open import smart_open
@@ -127,7 +131,7 @@ def filter_thru_thresh(df:pd.DataFrame, thresh:float= 0.8):
     return df_sorted.tail(threshold)
 
 
-def main():
+def tfidf_filter_data():
     df = load_data("recursive_data/total/total_cleaned.csv")
     df_osi = load_data("osi.csv")
 
@@ -157,5 +161,87 @@ def main():
     logging.info(f"len after TFIDF filtering: {len(df_filt)}")
     df_filt.to_csv("recursive_data/total/refined_data.csv",index=False)
 
+async def text_cleaning_task(handler: OpenAIPromptHandler):
+    logging.info("Running cleaning coroutine")
+    output_path = "results/cleaning_eurlex"
+    task_name = "cleaning"
+    #load_dir = "results/coherence/coherence.csv"
+    load_dir = "results/coherence_eurlex/coherence.csv"
+    data = pd.read_csv(load_dir)
+    logging.info(f"len before filtering for documents flagged as trash {len(data)}")
+    data = data[data.generated_text.isin(["Yes","yes"])].reset_index(drop=True)
+    logging.info(f"len of df to process: {len(data)}")
+
+    results = await handler.execute_task(results_dir=output_path,
+                                         data=data,
+                                         task=task_name,
+                                         task_prompt=CLEANING_PROMPT,
+                                         system_prompt=CLEANING_SYSTEM,
+                                         batch_size=25)
+    
+    results = pd.concat(results,ignore_index=True).dropna()
+    results.to_csv(os.path.join(output_path,f"{task_name}.csv"),index=False)
+
+
+async def coherence_check(handler: OpenAIPromptHandler):
+    logging.info("Running coherence check coroutine")
+    output_path = "results/coherence_eurlex"
+    task_name = "coherence"
+    
+    #load_dir = "recursive_data/total/refined_data.csv"
+    load_dir = "downloads/eurlex.csv"
+    data = pd.read_csv(load_dir)
+    logging.info(f"len before filtering for documents exceeding context window: {len(data)}")
+    encoding = tiktoken.encoding_for_model("gpt-4o-mini") #Same as below
+    data = encode_text(data, encoding) ## Not really meant to be here but whatever
+    data = data[(data.num_tokens > 500) & (data.num_tokens < 123e3)].reset_index(drop=True)
+    logging.info(f"len of df to process: {len(data)}")
+
+    results = await handler.execute_task(results_dir=output_path,
+                                         data=data,
+                                         task=task_name,
+                                         task_prompt=CLASSIF_PROMPT,
+                                         system_prompt=CLASSIF_SYSTEM,
+                                         batch_size=25)
+    
+
+    handler.store_total_result(results,output_path, task_name)
+
+
+def create_corpus():
+    import pickle
+
+    file_path = "results/cleaning/corpus4.pkl"
+    
+    df = pd.read_csv("results/cleaning/cleaning.csv")
+
+
+    with open(file_path, "wb") as f:
+        pickle.dump(df.content.to_list(), f)
+    
+    logging.info(f"Corpus was created at: {file_path}")
+
+
+
+def main(task):
+    if task == "filtering":
+        tfidf_filter_data()
+
+    elif task == "corpus":
+        create_corpus()
+
+    elif task == "check":
+        handler = OpenAIPromptHandler()
+        asyncio.run(coherence_check(handler=handler))
+
+    elif task == "cleaning":
+        handler = OpenAIPromptHandler()
+        asyncio.run(text_cleaning_task(handler=handler))
+
+        
+
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Process some integers.")
+    parser.add_argument('task', choices=['filtering', 'check', 'cleaning','corpus'], help='Task to perform: filtering or cleaning')
+    args = parser.parse_args()
+    main(args.task)

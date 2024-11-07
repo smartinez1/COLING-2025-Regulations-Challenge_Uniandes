@@ -14,4 +14,7 @@ similmatrix.index.index.npy
 .env
 *.csv
 osi.csv
+*.txt
+*.pdf
+*.pkl
 /results

@@ -15,7 +15,7 @@ LINKS = [
     "EUR-LEX"
     "ESMA", 
     "SEC", 
-    "ECFR",
+    "CFR",
     "FDIC",
     "FED",
 ]
@@ -23,9 +23,17 @@ LINKS = [
 DEFS    = [
     "EUR-LEX"
     "ESMA", 
-    "SEC", 
-    "FED",
-    "FDIC",
+    "SEC",
+    "FDIC", 
     "III",
     "SBOA",
+    "FED",
 ]
+
+QA_TASK = ["SEC",
+           "FED",
+           "FDIC",
+           "III",
+           "FASAB",
+           "SBOA"
+           ]

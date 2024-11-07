@@ -5,7 +5,7 @@ PROMPT_OSI_QA = """
     ´´´
     Generate question/answer pairs relevant to the text you observe. These questions must be formulated in a way such that:
     a. The question is focused on knowing more about open source software licensing and applications
-    b. The question must have a financial regulatory intent
+    b. The question must have a financial regulatory or compliance intent
     c. The answer distills knowledge in a concise and factual manner in order to answer the question's intent.
 
     Return them in a numerated list following this format:
@@ -43,9 +43,6 @@ PROMPT_OSI_ABBREV = """
 """
 
 SYSTEM_PROMPT_OSI = "You are an accurate, articulate and knowledgeable in open source licensing knowledge for financial and business applications."
-
-##
-# ABBREVIATIONS, LINKS, Definitions
 
 PROMPT_ABBREV = """
         Pay close attention to the following text:
@@ -101,9 +98,51 @@ PROMPT_DEFS = """
         ONLY provide this list, nothing else.
         """
 
+PROMPT_QA_TASK = """
+    Given the following text:
+    ´´´
+    {context}
+    ´´´
+    Generate question/answer pairs relevant to the text you observe. These questions must be formulated in a way such that:
+    a. The question must be in long-form question format.
+    b. The question must inquire about regulatory and compliance issues related to finance.
+    c. The answer distills knowledge in a concise and factual manner in order to answer the question's intent.
+
+    Return them in a numerated list following this format:
+    ´´´
+    1. <question> - <answer>
+    2. <question> - <answer>
+    .
+    .
+    .
+    n. <question> - <answer>
+    ´´´
+    ONLY provide this list, nothing else, nothing extra.
+"""
+
+PROMPT_CDM_TASK = """
+    Given the following text:
+    ´´´
+    {context}
+    ´´´
+    Generate question/answer pairs relevant to the text you observe. These questions must be formulated in a way such that:
+    a. The question must be in long-form question format.
+    b. The answer distills knowledge in a concise and factual manner in order to answer the question's intent.
+
+    Return them in a numerated list following this format:
+    ´´´
+    1. <question> - <answer>
+    2. <question> - <answer>
+    .
+    .
+    .
+    n. <question> - <answer>
+    ´´´
+    ONLY provide this list, nothing else, nothing extra.
+"""
 SYSTEM_PROMPT_GENERAL = "You are an accurate transliterator, articulate and knowledgeable in law and regulation for the US and EU"
 
-## DATA PROCESSOR
+
 
 CLASSIF_PROMPT = """
 Given the following text:
@@ -111,15 +150,12 @@ Given the following text:
     {context}
     ´´´
 
-Examine the document given and check the following:
-    1. Is the document in English?
-    2. Are the document's contents about topics related to financial regulation, industry standards, compliance processes, open source documentation and licensing?
+Examine the document given and answer the following question:
+
+<Question: Is the present text in English, possesses a main idea and follows a coherent structure?
     
-
-    If either of them is false, then say "no", otherwise say "yes". Output your choice only.
+Answer the question with "yes" or "no". Output your choice only.
 """
-
-
 
 CLEANING_PROMPT = """
 Given the following text:
@@ -147,31 +183,12 @@ You are an expert in financial regulation and compliance, managing knowledge fro
 """
 
 CLEANING_SYSTEM = """
-You are a diligent editor and proofreader expert in cleaning articles and dirty text data. You are only concerned with technical text data and not chart data.
+You are a diligent editor and proofreader with a financial and regulatory background.
 """
 
-
-
-### SOURCE CATEGORIES 
-
-ABBREV = ["EUR-LEX", 
-          "ESMA", 
-          "SEC", 
-          "CFTC", 
-          "FINRA",
-          "FED",
-          "FDIC",
-          "III",
-          "FASAB",
-          "SBOA",
-          "NYSE"
-          ]
-
-
-QA_TASK = ["SEC",
-           "FED",
-           "FDIC",
-           "III",
-           "FASAB",
-           "SBOA"
-           ]
+QA_SYSTEM = """
+You are a knowledgeable professional with extensive and deep knowledge in financial regulation and compliance.
+"""
+CDM_SYSTEM = """
+You are a knowledgeable professional with extensive and deep knowledge about how financial products are traded and managed across the transaction lifecycle.
+"""

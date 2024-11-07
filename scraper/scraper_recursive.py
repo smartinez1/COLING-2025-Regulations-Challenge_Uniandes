@@ -103,7 +103,10 @@ def download_and_extract_file(link, download_dir="downloads"):
             os.makedirs(download_dir)
 
         # Get the file extension to identify the file type
-        response = requests.get(link)
+        headers = 	{
+	'user-agent':'introxx.96@gmail.com'
+	}
+        response = requests.get(link, headers=headers)
         filename = link.split("/")[-1]
         file_path = os.path.join(download_dir, filename)
         
@@ -439,5 +442,5 @@ def sequential_scrape(start_urls, directory):
     #     logging.info(f"Saved non-working links to {os.path.join(base_directory, 'non_working_links.csv')}")
 
 if __name__ == "__main__":
-    parallel_scrape(start_urls=SCRAP_LINKS, directory="total")
+    parallel_scrape(start_urls=SCRAP_LINKS_SEC, directory="sec")
     # sequential_scrape(start_urls=SCRAP_LINKS_SEC, directory="sec")

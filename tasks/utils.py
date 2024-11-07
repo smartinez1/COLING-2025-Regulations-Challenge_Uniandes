@@ -5,6 +5,7 @@ from functools import wraps
 from openai import AzureOpenAI
 import concurrent.futures
 import logging
+import numpy as np
 import traceback
 import pandas as pd
 from tqdm import tqdm
@@ -13,9 +14,11 @@ import random
 import uuid
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.getLogger("openai").setLevel(logging.ERROR)
+logging.getLogger("httpx").setLevel(logging.ERROR)
 
 
-def async_retry(retries=4, backoff_factor=2.0):
+def async_retry(retries=4, backoff_factor=np.exp(1)):
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -26,7 +29,7 @@ def async_retry(retries=4, backoff_factor=2.0):
                 except Exception as e:
                     if attempts == retries:
                         logging.error(f"Max retries reached. Last error: {traceback.print_exc()}")
-                        return None
+                        return ""
                     attempts += 1
                     sleep_time = backoff_factor ** attempts
                     await asyncio.sleep(sleep_time)
@@ -59,7 +62,7 @@ class OpenAIPromptHandler:
             
         costs = []
         for response in responses:
-                costs.append(_calculate_individual_cost(response, input_token_price, output_token_price)) if response else costs.append((None,None))
+                costs.append(_calculate_individual_cost(response, input_token_price, output_token_price)) if response else costs.append((0,0))
         return costs 
     
 
@@ -158,19 +161,18 @@ class OpenAIPromptHandler:
                     continue    
             
             responses, costs = await self.process_batch_task(batch_data, task_prompt, system_prompt)
-            
             # Adapts response to schema 
             current_data = (batch_data[["url","source","content"]]
                             .assign(task=task)
                             .assign(total_tokens = [cost[1] for cost in costs])
-                            .assign(generated_text = [response.choices[0].message.content for response in responses])
+                            .assign(generated_text = [response.choices[0].message.content if hasattr(response,"choices") else "" for response in responses])
                             .assign(costs = [cost[0] for cost in costs])
                             )
 
             # Save and append data
             all_responses.append(current_data)
             current_data.to_csv(os.path.join(processed_dir,f"{uuid.uuid4().hex[:5]}.csv"),index=False)
-            time.sleep(random.uniform(0.3,1.2))
+            time.sleep(random.uniform(45,60))
 
         return all_responses
     

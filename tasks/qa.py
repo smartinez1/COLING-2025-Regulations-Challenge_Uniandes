@@ -12,8 +12,8 @@ def store_total_result(results:list[pd.DataFrame], store_dir:str, task_name:str)
     total = pd.concat(results,ignore_index=True)
     total.to_csv(os.path.join(store_dir,f"{task_name}.csv"),index=False)
 
-async def abbreviation_task(handler: OpenAIPromptHandler):
-    output_path = "results/abbrev"
+async def osi_qa_task(handler: OpenAIPromptHandler):
+    output_path = "results/osi_qa"
     task_name = output_path.split('/')[-1]
     data = pd.read_csv("osi.csv")
     data = data[data.source == "OSI"].head(30)  # Assuming you have a path for the CSV
