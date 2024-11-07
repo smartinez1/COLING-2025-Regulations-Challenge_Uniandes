@@ -10,10 +10,10 @@ FOLDER_PATH = "results/allresults/"
 
 def parse(raw_text: str) -> Dict[str, str]:
     """
-    Parse the raw string output of abbreviations into a dictionary.
+    Parse the raw string output in <raw_text> into a dictionary.
 
     Args:
-        raw_text (str): Raw output string containing abbreviations and their meanings.
+        raw_text (str): Raw output string containing raw text and their corresponding ´answer´.
 
     Returns:
         Dict[str, str]: A dictionary mapping abbreviations to their expanded versions.
@@ -153,7 +153,7 @@ def consolidate_json_files(output_file: str = "consolidated.json"):
 
 
 if __name__ == "__main__":
-    choices=['link', 'abbrev', 'abbrev_osi', 'definition', 'qa', 'qa_osi', 'all']
+    choices=['link', 'abbrev', 'abbrev_osi', 'definition', 'qa', 'qa_osi', 'cdm', 'all']
     parser = argparse.ArgumentParser(description="Process CSV files for various tasks.")
     parser.add_argument(
         '--task', choices=choices,
@@ -167,7 +167,8 @@ if __name__ == "__main__":
         'abbrev_osi': lambda: process_abbreviation_recognition('osi_abbrev'),
         'definition': lambda: process_task("Define the following term: {}", "definitions"),
         'qa': lambda: process_task("Provide a concise answer to the following question: {}", "qa_task"),
-        'qa_osi': lambda: process_task("Provide a concise answer to the following question: {}", "osi_qa")
+        'qa_osi': lambda: process_task("Provide a concise answer to the following question: {}", "osi_qa"),
+        'cdm': lambda: process_task("Provide a concise answer to the following question related to Financial Industry Operating Network's (FINO) Common Domain Model (CDM): {}", "cdm_task")
     }
     if args.task!='all':
         task_map[args.task]()
