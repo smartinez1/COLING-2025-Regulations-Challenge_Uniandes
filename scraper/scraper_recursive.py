@@ -353,7 +353,7 @@ def scrape_links_from_page(url_tuple, csv_filename, current_depth=0):
 
     # Scrape content from the URL
     page_content, error = scrape_link_content(url)
-    if page_content and score_new_document(page_content)>0:
+    if page_content and score_new_document(page_content)>-0.05:
         update_csv_batch(csv_filename, url, source, page_content)
 
     try:

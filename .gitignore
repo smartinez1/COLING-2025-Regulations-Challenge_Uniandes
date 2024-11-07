@@ -18,3 +18,6 @@ osi.csv
 *.pdf
 *.pkl
 /results
+/results
+/SEC_data
+/recursive
