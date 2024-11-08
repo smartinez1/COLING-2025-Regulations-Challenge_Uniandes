@@ -109,6 +109,34 @@ def process_task(instruction_prompt: str, csv_file_suffix: str):
 
     save_json(output_data, f"{csv_file_suffix}_prompts.json")
 
+def cfa_data(output_file: str = "cfa_prompts.json"):
+    df = pd.read_parquet("hf://datasets/ChanceFocus/flare-cfa/data/test-00000-of-00001-6e96e3a2bc65fdb8.parquet")
+    # Reformatting the dataset into the desired JSON structure
+    json_list = []
+    for index, row in df.iterrows():
+        formatted_entry = {
+            "instruction": f"{row.query.split('Q:')[0]}",
+            "input": f"{row.query.split('Q:')[1][:-8]}",
+            "output": f"{row.answer}"
+        }
+        json_list.append(formatted_entry)
+
+    save_json(json_list, output_file)
+
+def xbrl_data(output_file: str = "xbrl_prompts.json"):
+    df_xbrl = pd.read_json("hf://datasets/mirageco/XBRLBench/test.json")
+    # Reformatting the dataset into the desired JSON structure
+    json_list = []
+    for index, row in df_xbrl.iterrows():
+        formatted_entry = {
+            "instruction": "Answer the question based on the xbrl.",
+            "input": f"Context: {row.text}.\n  {row.query}",
+            "output": f"{row.answer.split('Answer:')[-1]}"
+        }
+        json_list.append(formatted_entry)
+
+    save_json(json_list, output_file)
+
 def consolidate_json_files(output_file: str = "consolidated.json"):
     """
     Consolidates and deduplicates all JSON files in FOLDER_PATH into a single JSON file.
@@ -152,8 +180,10 @@ def consolidate_json_files(output_file: str = "consolidated.json"):
     print(f"Consolidated data saved to '{consolidated_file}'.")
 
 
+
 if __name__ == "__main__":
-    choices=['link', 'abbrev', 'abbrev_osi', 'definition', 'qa', 'qa_osi', 'cdm', 'all']
+    choices=['link', 'abbrev', 'abbrev_osi', 'definition', 
+             'qa', 'qa_osi', 'cdm', 'cfa', 'xbrl', 'all']
     parser = argparse.ArgumentParser(description="Process CSV files for various tasks.")
     parser.add_argument(
         '--task', choices=choices,
@@ -168,6 +198,8 @@ if __name__ == "__main__":
         'definition': lambda: process_task("Define the following term: {}", "definitions"),
         'qa': lambda: process_task("Provide a concise answer to the following question: {}", "qa_task"),
         'qa_osi': lambda: process_task("Provide a concise answer to the following question: {}", "osi_qa"),
+        'cfa': lambda: cfa_data(),
+        'xbrl': lambda: xbrl_data(),
         'cdm': lambda: process_task("Provide a concise answer to the following question related to Financial Industry Operating Network's (FINO) Common Domain Model (CDM): {}", "cdm_task")
     }
     if args.task!='all':
