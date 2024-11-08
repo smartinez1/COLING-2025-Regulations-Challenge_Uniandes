@@ -180,7 +180,6 @@ def consolidate_json_files(output_file: str = "consolidated.json"):
     print(f"Consolidated data saved to '{consolidated_file}'.")
 
 
-
 if __name__ == "__main__":
     choices=['link', 'abbrev', 'abbrev_osi', 'definition', 
              'qa', 'qa_osi', 'cdm', 'cfa', 'xbrl', 'all']

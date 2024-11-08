@@ -211,7 +211,7 @@ async def coherence_check(handler: OpenAIPromptHandler):
 def create_corpus():
     import pickle
 
-    file_path = "results/cleaning/corpus4.pkl"
+    file_path = "results/cleaning/corpus_v5.pkl"
     
     df = pd.read_csv("results/cleaning/cleaning.csv")
 
