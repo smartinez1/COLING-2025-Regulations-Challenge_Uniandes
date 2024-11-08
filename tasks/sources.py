@@ -37,3 +37,8 @@ QA_TASK = ["SEC",
            "FASAB",
            "SBOA"
            ]
+
+NER_TASK = [
+    "EUR-LEX",
+    "ESMA" 
+]

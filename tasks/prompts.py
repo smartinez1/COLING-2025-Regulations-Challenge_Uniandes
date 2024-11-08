@@ -98,6 +98,23 @@ PROMPT_DEFS = """
         ONLY provide this list, nothing else.
         """
 
+PROMPT_NER = """
+        Given the following text, only list the following for each: specific Organizations, Legislations, Dates, Monetary Values, and Statistics:
+        ```
+        {context}
+        ```
+        privide a list with the following format
+        ```
+        1. <Organization>
+        2. <Legislation>
+        3. <Dates>
+        4. <Monetary Values>
+        5. <Statistics> 
+        ```
+        if no corresponding term is found, provide an N/A for the entity. there MUST always be 5 elements.
+        ONLY provide this list, nothing else.
+        """
+
 PROMPT_QA_TASK = """
     Given the following text:
     ´´´
